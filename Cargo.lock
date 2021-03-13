@@ -1856,17 +1856,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
-name = "presentation"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "flexi_logger",
- "iced",
- "iced_native",
- "log",
-]
-
-[[package]]
 name = "proc-macro-crate"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1894,6 +1883,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0704ee1a7e00d7bb417d0770ea303c1bccbabf0ef1667dae92b5967f5f8a71"
 dependencies = [
  "unicode-xid",
+]
+
+[[package]]
+name = "prodzytsol"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flexi_logger",
+ "iced",
+ "iced_native",
+ "log",
 ]
 
 [[package]]

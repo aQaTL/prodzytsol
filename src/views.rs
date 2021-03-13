@@ -1,5 +1,6 @@
-use crate::{App, Presentation, PresentationState, Slide};
+use crate::{App, HeaderSize, Presentation, PresentationState, Slide, SlideNode};
 use iced::*;
+use log::debug;
 
 type Element = iced::Element<'static, <App as Application>::Message>;
 
@@ -21,7 +22,7 @@ pub fn welcome_screen() -> Element {
 static DEFAULT_SLIDE: Slide = default_slide();
 
 const fn default_slide() -> Slide {
-    Slide { header: None }
+    Slide(Vec::new())
 }
 
 pub fn presentation(presentation: &Presentation, state: &PresentationState) -> Element {
@@ -37,27 +38,38 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
         }
     };
 
-    let welcome_msg_txt = header(slide);
+    let mut column = Column::new()
+        // .height(Length::Fill)
+        // .width(Length::Fill)
+        .align_items(Align::Center);
 
-    let column = Column::new()
-        .spacing(20)
-        .height(Length::Fill)
+    for element in &slide.0 {
+        match element {
+            SlideNode::Header(size, txt) => {
+                column = column.push(header(*size, txt));
+            }
+            SlideNode::Text(_) => {}
+            SlideNode::NumberedList(_) => {}
+        }
+    }
+
+    Row::new()
+        // .height(Length::Fill)
+        // .width(Length::Fill)
         .align_items(Align::Center)
-        .push(welcome_msg_txt);
-
-    column.into()
+        .push(column)
+        .into()
+    // column.into()
 }
 
-fn header(slide: &Slide) -> Element {
-    let header = match slide.header.as_deref() {
-        Some(v) => v,
-        None => return Text::new("").into(),
-    };
-
-    Text::new(format!("{}", header))
+fn header(size: HeaderSize, txt: &str) -> Element {
+    debug!("font size {}", size.to_font_size());
+    Text::new(format!("{}", txt))
         .width(Length::Fill)
-        .size(100)
+        // .height(Length::Fill)
+        .size(size.to_font_size())
         .color([1.0, 1.0, 1.0])
         .horizontal_alignment(HorizontalAlignment::Center)
+        .vertical_alignment(VerticalAlignment::Center)
         .into()
 }
