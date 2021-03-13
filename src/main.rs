@@ -9,7 +9,7 @@ mod commands;
 mod views;
 
 fn main() -> Result<()> {
-    flexi_logger::Logger::with_env_or_str("presentation=debug").start()?;
+    flexi_logger::Logger::with_env_or_str("prodzytsol=debug").start()?;
     App::run(Settings::default())?;
 
     Ok(())
@@ -164,6 +164,14 @@ impl App {
             KeyPressed {
                 key_code: KeyCode::Space,
                 modifiers: _,
+            }
+            | KeyPressed {
+                key_code: KeyCode::X,
+                modifiers: _,
+            }
+            | KeyPressed {
+                key_code: KeyCode::Right,
+                modifiers: _,
             } => {
                 if let Stage::Presentation {
                     ref presentation,
@@ -171,6 +179,28 @@ impl App {
                 } = self.stage
                 {
                     state.slide_idx = (state.slide_idx + 1).min(presentation.slides.len() - 1);
+                    info!("new slide idx: {}", state.slide_idx);
+                }
+            }
+
+            KeyPressed {
+                key_code: KeyCode::Backspace,
+                modifiers: _,
+            }
+            | KeyPressed {
+                key_code: KeyCode::Z,
+                modifiers: _,
+            }
+            | KeyPressed {
+                key_code: KeyCode::Left,
+                modifiers: _,
+            } => {
+                if let Stage::Presentation {
+                    presentation: _,
+                    ref mut state,
+                } = self.stage
+                {
+                    state.slide_idx = state.slide_idx.saturating_sub(1);
                     info!("new slide idx: {}", state.slide_idx);
                 }
             }

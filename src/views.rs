@@ -1,6 +1,5 @@
 use crate::{App, HeaderSize, Presentation, PresentationState, Slide, SlideNode};
 use iced::*;
-use log::debug;
 
 type Element = iced::Element<'static, <App as Application>::Message>;
 
@@ -66,7 +65,6 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 static WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 
 fn header(size: HeaderSize, txt: &str) -> Element {
-    debug!("font size {}", size.to_font_size());
     Text::new(txt)
         .width(Length::Fill)
         // .height(Length::Fill)
