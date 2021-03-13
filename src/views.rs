@@ -48,6 +48,9 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
             SlideNode::Text(txt) => {
                 column = column.push(text(txt));
             }
+            SlideNode::UnnumberedList(list) => {
+                column = column.push(unnumbered_list(list));
+            }
             SlideNode::NumberedList(_) => {}
         }
     }
@@ -84,6 +87,24 @@ fn text(txt: &str) -> Element {
         .horizontal_alignment(HorizontalAlignment::Center)
         .vertical_alignment(VerticalAlignment::Center)
         .into()
+}
+
+fn unnumbered_list(list: &Vec<String>) -> Element {
+    let elements = list
+        .iter()
+        .map(|element| {
+            Text::new(format!("\t* {}", element))
+                .width(Length::Shrink)
+                .size(42)
+                .color(WHITE)
+                .font(fonts::LATO_REGULAR)
+                .horizontal_alignment(HorizontalAlignment::Left)
+                .vertical_alignment(VerticalAlignment::Center)
+                .into()
+        })
+        .collect();
+
+    Column::with_children(elements).into()
 }
 
 #[allow(dead_code)]

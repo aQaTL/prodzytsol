@@ -46,6 +46,7 @@ pub struct Slide(Vec<SlideNode>);
 pub enum SlideNode {
     Header(HeaderSize, String),
     Text(String),
+    UnnumberedList(Vec<String>),
     NumberedList(Vec<String>),
 }
 
