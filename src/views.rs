@@ -18,11 +18,7 @@ pub fn welcome_screen() -> Element {
         .into()
 }
 
-static DEFAULT_SLIDE: Slide = default_slide();
-
-const fn default_slide() -> Slide {
-    Slide(Vec::new())
-}
+static DEFAULT_SLIDE: Slide = Slide(Vec::new());
 
 pub fn presentation(presentation: &Presentation, state: &PresentationState) -> Element {
     let slide = match presentation.slides.get(state.slide_idx) {
@@ -107,16 +103,13 @@ fn unnumbered_list(list: &Vec<String>) -> Element {
 
 #[allow(dead_code)]
 pub mod fonts {
-    const fn new_external_font(name: &'static str, bytes: &'static [u8]) -> iced::Font {
-        iced::Font::External { name, bytes }
-    }
     macro_rules! font {
         ($($name: ident : $filename: expr $(,)? ),*) => {
             $(
-                pub static $name: iced::Font = new_external_font(
-                    $filename,
-                    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/fonts/", $filename)),
-                );
+                pub static $name: iced::Font = iced::Font::External {
+                    name: $filename,
+                    bytes: include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/fonts/", $filename)),
+                };
             )*
         };
     }
