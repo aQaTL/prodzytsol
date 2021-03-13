@@ -38,37 +38,47 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
         }
     };
 
-    let mut column = Column::new()
-        // .height(Length::Fill)
-        // .width(Length::Fill)
-        .align_items(Align::Center);
+    let mut column = Column::new().spacing(10).align_items(Align::Center);
 
     for element in &slide.0 {
         match element {
             SlideNode::Header(size, txt) => {
                 column = column.push(header(*size, txt));
             }
-            SlideNode::Text(_) => {}
+            SlideNode::Text(txt) => {
+                column = column.push(text(txt));
+            }
             SlideNode::NumberedList(_) => {}
         }
     }
 
-    Row::new()
-        // .height(Length::Fill)
-        // .width(Length::Fill)
-        .align_items(Align::Center)
-        .push(column)
+    Container::new(column)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x()
+        .center_y()
         .into()
-    // column.into()
 }
+
+static WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 
 fn header(size: HeaderSize, txt: &str) -> Element {
     debug!("font size {}", size.to_font_size());
-    Text::new(format!("{}", txt))
+    Text::new(txt)
         .width(Length::Fill)
         // .height(Length::Fill)
         .size(size.to_font_size())
-        .color([1.0, 1.0, 1.0])
+        .color(WHITE)
+        .horizontal_alignment(HorizontalAlignment::Center)
+        .vertical_alignment(VerticalAlignment::Center)
+        .into()
+}
+
+fn text(txt: &str) -> Element {
+    Text::new(txt)
+        .width(Length::Fill)
+        .size(42)
+        .color(WHITE)
         .horizontal_alignment(HorizontalAlignment::Center)
         .vertical_alignment(VerticalAlignment::Center)
         .into()

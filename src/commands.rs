@@ -14,8 +14,8 @@ pub async fn load_from_args() -> LoadFromArgsResult {
                     "Wprowadzenie do Rusta dla tych, którzy już trochę programować umieją",
                 ),
             ),
-            // SlideNode::Text(String::from("Maciej Sołtys")),
-            SlideNode::Header(HeaderSize::Four, String::from("Maciej Sołtys")),
+            SlideNode::Text(String::from("Maciej Sołtys")),
+            // SlideNode::Header(HeaderSize::Four, String::from("Maciej Sołtys")),
         ])],
     };
     Ok(presentation)
