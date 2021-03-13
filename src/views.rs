@@ -69,10 +69,6 @@ fn header(size: HeaderSize, txt: &str) -> Element {
         // .height(Length::Fill)
         .size(size.to_font_size())
         .color(WHITE)
-        // .font(Font::External {
-        //     name: "Lato-Bold",
-        //     bytes: fonts::LATO_BOLD,
-        // })
         .font(fonts::LATO_BOLD)
         .horizontal_alignment(HorizontalAlignment::Center)
         .vertical_alignment(VerticalAlignment::Center)
@@ -84,6 +80,7 @@ fn text(txt: &str) -> Element {
         .width(Length::Fill)
         .size(42)
         .color(WHITE)
+        .font(fonts::LATO_REGULAR)
         .horizontal_alignment(HorizontalAlignment::Center)
         .vertical_alignment(VerticalAlignment::Center)
         .into()
