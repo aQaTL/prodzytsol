@@ -4,106 +4,129 @@ use iced::*;
 type Element = iced::Element<'static, <App as Application>::Message>;
 
 pub fn welcome_screen() -> Element {
-    let welcome_msg_txt = Text::new("Presentation")
-        .width(Length::Fill)
-        .size(100)
-        .color([1.0, 1.0, 1.0])
-        .horizontal_alignment(HorizontalAlignment::Center)
-        .vertical_alignment(VerticalAlignment::Center);
+	let welcome_msg_txt = Text::new("Presentation")
+		.width(Length::Fill)
+		.size(100)
+		.color([1.0, 1.0, 1.0])
+		.horizontal_alignment(HorizontalAlignment::Center)
+		.vertical_alignment(VerticalAlignment::Center);
 
-    Column::new()
-        .spacing(20)
-        .align_items(Align::Center)
-        .push(welcome_msg_txt)
-        .into()
+	Column::new()
+		.spacing(20)
+		.align_items(Align::Center)
+		.push(welcome_msg_txt)
+		.into()
 }
 
 static DEFAULT_SLIDE: Slide = Slide(Vec::new());
 
 pub fn presentation(presentation: &Presentation, state: &PresentationState) -> Element {
-    let slide = match presentation.slides.get(state.slide_idx) {
-        Some(v) => v,
-        None => {
-            log::error!(
-                "Invalid slide idx: {}. Slide count: {}",
-                state.slide_idx,
-                presentation.slides.len()
-            );
-            &DEFAULT_SLIDE
-        }
-    };
+	let slide = match presentation.slides.get(state.slide_idx) {
+		Some(v) => v,
+		None => {
+			log::error!(
+				"Invalid slide idx: {}. Slide count: {}",
+				state.slide_idx,
+				presentation.slides.len()
+			);
+			&DEFAULT_SLIDE
+		}
+	};
 
-    let mut column = Column::new().spacing(10).align_items(Align::Center);
+	let mut column = Column::new().spacing(10).align_items(Align::Center);
 
-    for element in &slide.0 {
-        match element {
-            SlideNode::Header(size, txt) => {
-                column = column.push(header(*size, txt));
-            }
-            SlideNode::Text(txt) => {
-                column = column.push(text(txt));
-            }
-            SlideNode::UnnumberedList(list) => {
-                column = column.push(unnumbered_list(list));
-            }
-            SlideNode::NumberedList(_) => {}
-        }
-    }
+	for element in &slide.0 {
+		match element {
+			SlideNode::Header(size, txt) => {
+				column = column.push(header(*size, txt));
+			}
+			SlideNode::Text(txt) => {
+				column = column.push(text(txt));
+			}
+			SlideNode::UnnumberedList(list) => {
+				column = column.push(unnumbered_list(list));
+			}
+			SlideNode::NumberedList(list) => {
+				column = column.push(numbered_list(list));
+			}
+		}
+	}
 
-    Container::new(column)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x()
-        .center_y()
-        .into()
+	Container::new(column)
+		.width(Length::Fill)
+		.height(Length::Fill)
+		.center_x()
+		.center_y()
+		.into()
 }
 
 static WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 
 fn header(size: HeaderSize, txt: &str) -> Element {
-    Text::new(txt)
-        .width(Length::Fill)
-        // .height(Length::Fill)
-        .size(size.to_font_size())
-        .color(WHITE)
-        .font(fonts::LATO_BOLD)
-        .horizontal_alignment(HorizontalAlignment::Center)
-        .vertical_alignment(VerticalAlignment::Center)
-        .into()
+	Text::new(txt)
+		.width(Length::Fill)
+		// .height(Length::Fill)
+		.size(size.to_font_size())
+		.color(WHITE)
+		.font(fonts::LATO_BOLD)
+		.horizontal_alignment(HorizontalAlignment::Center)
+		.vertical_alignment(VerticalAlignment::Center)
+		.into()
 }
 
 fn text(txt: &str) -> Element {
-    Text::new(txt)
-        .width(Length::Fill)
-        .size(42)
-        .color(WHITE)
-        .font(fonts::LATO_REGULAR)
-        .horizontal_alignment(HorizontalAlignment::Center)
-        .vertical_alignment(VerticalAlignment::Center)
-        .into()
+	Text::new(txt)
+		.width(Length::Fill)
+		.size(42)
+		.color(WHITE)
+		.font(fonts::LATO_REGULAR)
+		.horizontal_alignment(HorizontalAlignment::Center)
+		.vertical_alignment(VerticalAlignment::Center)
+		.into()
 }
 
-fn unnumbered_list(list: &Vec<String>) -> Element {
-    let elements = list
-        .iter()
-        .map(|element| {
-            Text::new(format!("\t* {}", element))
-                .width(Length::Shrink)
-                .size(42)
-                .color(WHITE)
-                .font(fonts::LATO_REGULAR)
-                .horizontal_alignment(HorizontalAlignment::Left)
-                .vertical_alignment(VerticalAlignment::Center)
-                .into()
-        })
-        .collect();
+const BULLET_CHAR: char = '\u{2022}';
 
-    Column::with_children(elements).into()
+fn unnumbered_list(list: &Vec<String>) -> Element {
+	Column::with_children(
+		list.iter()
+			.map(|element| {
+				Text::new(format!("\t{} {}", BULLET_CHAR, element))
+					.width(Length::Shrink)
+					.size(42)
+					.color(WHITE)
+					.font(fonts::LATO_REGULAR)
+					.horizontal_alignment(HorizontalAlignment::Left)
+					.vertical_alignment(VerticalAlignment::Center)
+					.into()
+			})
+			.collect(),
+	)
+	.into()
+}
+
+fn numbered_list(list: &Vec<String>) -> Element {
+	Column::with_children(
+		list.iter()
+			.enumerate()
+			.map(|(idx, element)| {
+				Text::new(format!("\t{}. {}", idx + 1, element))
+					.width(Length::Shrink)
+					.size(42)
+					.color(WHITE)
+					.font(fonts::LATO_REGULAR)
+					.horizontal_alignment(HorizontalAlignment::Left)
+					.vertical_alignment(VerticalAlignment::Center)
+					.into()
+			})
+			.collect(),
+	)
+	.into()
 }
 
 #[allow(dead_code)]
 pub mod fonts {
-    macro_rules! font {
+	macro_rules! font {
         ($($name: ident : $filename: expr $(,)? ),*) => {
             $(
                 pub static $name: iced::Font = iced::Font::External {
@@ -114,16 +137,16 @@ pub mod fonts {
         };
     }
 
-    font![
-        LATO_BLACK: "Lato-BlackItalic.ttf",
-        LATO_BLACK_ITALIC: "Lato-BlackItalic.ttf",
-        LATO_BOLD: "Lato-Bold.ttf",
-        LATO_BOLD_ITALIC: "Lato-BoldItalic.ttf",
-        LATO_ITALIC: "Lato-Italic.ttf",
-        LATO_LIGHT: "Lato-Light.ttf",
-        LATO_LIGHT_ITALIC: "Lato-LightItalic.ttf",
-        LATO_REGULAR: "Lato-Regular.ttf",
-        LATO_THIN: "Lato-Thin.ttf",
-        LATO_THINITALIC: "Lato-ThinItalic.ttf",
-    ];
+	font![
+		LATO_BLACK: "Lato-BlackItalic.ttf",
+		LATO_BLACK_ITALIC: "Lato-BlackItalic.ttf",
+		LATO_BOLD: "Lato-Bold.ttf",
+		LATO_BOLD_ITALIC: "Lato-BoldItalic.ttf",
+		LATO_ITALIC: "Lato-Italic.ttf",
+		LATO_LIGHT: "Lato-Light.ttf",
+		LATO_LIGHT_ITALIC: "Lato-LightItalic.ttf",
+		LATO_REGULAR: "Lato-Regular.ttf",
+		LATO_THIN: "Lato-Thin.ttf",
+		LATO_THINITALIC: "Lato-ThinItalic.ttf",
+	];
 }
