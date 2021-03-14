@@ -12,6 +12,7 @@ iced_native = { git = "https://github.com/hecrj/iced.git", rev = "842d54732bce8f
 anyhow = "1.0"
 log = "0.4"
 flexi_logger = "0.17"
+unicode-segmentation = "1.7"
 
 [dependencies.iced]
 git = "https://github.com/hecrj/iced.git"

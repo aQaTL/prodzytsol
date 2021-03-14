@@ -49,6 +49,12 @@ pub enum SlideNode {
 	UnnumberedList(Vec<String>),
 	NumberedList(Vec<String>),
 	Image(image::Handle),
+	CodeBlock(Language, String),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Language {
+	Rust,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -203,6 +209,14 @@ impl App {
 					state.slide_idx = state.slide_idx.saturating_sub(1);
 				}
 			}
+
+			KeyPressed {
+				key_code: KeyCode::F,
+				modifiers: _,
+			} => match self.mode {
+				ref mut mode @ Mode::Windowed => *mode = Mode::Fullscreen,
+				ref mut mode @ Mode::Fullscreen => *mode = Mode::Windowed,
+			},
 
 			_ => (),
 		}

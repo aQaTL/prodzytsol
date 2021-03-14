@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{HeaderSize, Presentation, Slide, SlideNode};
+use crate::{HeaderSize, Language, Presentation, Slide, SlideNode};
 use iced::image;
 
 pub type LoadFromArgsResult = Result<Presentation>;
@@ -31,6 +31,45 @@ pub async fn load_from_args() -> LoadFromArgsResult {
 		Slide(vec![
 			SlideNode::Header(HeaderSize::One, String::from("Ferris")),
 			SlideNode::Image(load_image("ferris.png").await?),
+		]),
+		Slide(vec![
+			SlideNode::Header(HeaderSize::Two, String::from("while loop")),
+			SlideNode::CodeBlock(
+				Language::Rust,
+				String::from(
+					r#"let mut a = 0;
+
+while a < 10 {
+	a += 1;
+}"#,
+				),
+			),
+		]),
+		Slide(vec![
+			SlideNode::Header(HeaderSize::Two, String::from("enum")),
+			SlideNode::CodeBlock(
+				Language::Rust,
+				String::from(
+					r#"enum SqrtResult {
+	Success(f64),
+	Fail(SqrtError),
+}
+
+enum SqrtError {
+	NegativeNumber,
+}
+
+fn sqrt(n: f64) -> SqrtResult {
+	if n < 0.0 {
+		return SqrtResult::Fail(SqrtError::NegativeNumber);
+	}
+
+	let sqrt_result = n.sqrt();
+
+	Ok(sqrt_result)
+}"#,
+				),
+			),
 		]),
 	];
 

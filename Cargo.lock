@@ -2005,6 +2005,7 @@ dependencies = [
  "iced",
  "iced_native",
  "log",
+ "unicode-segmentation",
 ]
 
 [[package]]

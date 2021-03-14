@@ -1,5 +1,6 @@
-use crate::{App, HeaderSize, Presentation, PresentationState, Slide, SlideNode};
+use crate::{App, HeaderSize, Language, Presentation, PresentationState, Slide, SlideNode};
 use iced::*;
+use unicode_segmentation::UnicodeSegmentation;
 
 type Element = iced::Element<'static, <App as Application>::Message>;
 
@@ -52,6 +53,9 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			SlideNode::Image(handle) => {
 				column = column.push(image::Image::new(handle.clone()));
 			}
+			SlideNode::CodeBlock(lang, txt) => {
+				column = column.push(code_block(*lang, txt));
+			}
 		}
 	}
 
@@ -66,14 +70,18 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 static WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 
 fn header(size: HeaderSize, txt: &str) -> Element {
-	Text::new(txt)
-		.width(Length::Fill)
-		// .height(Length::Fill)
-		.size(size.to_font_size())
-		.color(WHITE)
-		.font(fonts::LATO_BOLD)
-		.horizontal_alignment(HorizontalAlignment::Center)
-		.vertical_alignment(VerticalAlignment::Center)
+	Row::new()
+		.padding(20)
+		.push(
+			Text::new(txt)
+				.width(Length::Fill)
+				// .height(Length::Fill)
+				.size(size.to_font_size())
+				.color(WHITE)
+				.font(fonts::LATO_BOLD)
+				.horizontal_alignment(HorizontalAlignment::Center)
+				.vertical_alignment(VerticalAlignment::Center),
+		)
 		.into()
 }
 
@@ -127,6 +135,39 @@ fn numbered_list(list: &Vec<String>) -> Element {
 	.into()
 }
 
+static SOLARIZED_GRAY: [f32; 3] = [131.0 / 255.0, 148.0 / 255.0, 150.0 / 255.0];
+
+// static BLUE: [f32; 3] = [3.8 / 255.0, 94.9 / 255.0, 188.6 / 255.0];
+// static RED: [f32; 3] = [193.3 / 255.0, 23.4 / 255.0, 88.5 / 255.0];
+
+fn code_block(_lang: Language, txt: &str) -> Element {
+	let rows: Vec<Element> = txt
+		.replace("\t", "    ")
+		.lines()
+		.map(|mut line| {
+			if line.is_empty() {
+				line = " ";
+			}
+
+			Row::with_children(
+				line.graphemes(true)
+					.map(|grapheme| {
+						Text::new(grapheme)
+							.width(Length::Shrink)
+							.size(38)
+							.color(SOLARIZED_GRAY)
+							.font(fonts::CASCADIA_CODE_REGULAR)
+							.into()
+					})
+					.collect(),
+			)
+			.into()
+		})
+		.collect();
+
+	Column::with_children(rows).into()
+}
+
 #[allow(dead_code)]
 pub mod fonts {
 	macro_rules! font {
@@ -151,5 +192,12 @@ pub mod fonts {
 		LATO_REGULAR: "Lato-Regular.ttf",
 		LATO_THIN: "Lato-Thin.ttf",
 		LATO_THINITALIC: "Lato-ThinItalic.ttf",
+
+		CASCADIA_CODE_BOLD: "CascadiaCode-Bold.ttf",
+		CASCADIA_CODE_EXTRA_LIGHT: "CascadiaCode-ExtraLight.ttf",
+		CASCADIA_CODE_LIGHT: "CascadiaCode-Light.ttf",
+		CASCADIA_CODE_REGULAR: "CascadiaCode-Regular.ttf",
+		CASCADIA_CODE_SEMI_BOLD: "CascadiaCode-SemiBold.ttf",
+		CASCADIA_CODE_SEMI_LIGHT: "CascadiaCode-SemiLight.ttf",
 	];
 }
