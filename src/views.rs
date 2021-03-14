@@ -49,6 +49,9 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			SlideNode::NumberedList(list) => {
 				column = column.push(numbered_list(list));
 			}
+			SlideNode::Image(handle) => {
+				column = column.push(image::Image::new(handle.clone()));
+			}
 		}
 	}
 

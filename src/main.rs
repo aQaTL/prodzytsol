@@ -48,7 +48,7 @@ pub enum SlideNode {
 	Text(String),
 	UnnumberedList(Vec<String>),
 	NumberedList(Vec<String>),
-	// Image(image::)
+	Image(image::Handle),
 }
 
 #[derive(Debug, Copy, Clone)]
