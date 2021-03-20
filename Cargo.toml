@@ -13,6 +13,8 @@ anyhow = "1.0"
 log = "0.4"
 flexi_logger = "0.17"
 unicode-segmentation = "1.7"
+async-fs = "1.5"
+nom = "6.1"
 
 [dependencies.iced]
 git = "https://github.com/hecrj/iced.git"

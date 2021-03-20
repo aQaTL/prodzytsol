@@ -7,6 +7,7 @@ use log::*;
 
 mod commands;
 mod views;
+mod parser;
 
 fn main() -> Result<()> {
 	flexi_logger::Logger::with_env_or_str(concat!(env!("CARGO_PKG_NAME"), "=debug")).start()?;

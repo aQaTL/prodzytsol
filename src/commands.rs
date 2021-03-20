@@ -1,11 +1,34 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use iced::image;
+use std::path::Path;
 
 use crate::{HeaderSize, Language, Presentation, Slide, SlideNode};
-use iced::image;
 
 pub type LoadFromArgsResult = Result<Presentation>;
 
 pub async fn load_from_args() -> LoadFromArgsResult {
+	let file_path = std::env::args().skip(1).next();
+	match file_path {
+		Some(path) => load_from_file(&path).await,
+		None => load_example().await,
+	}
+}
+
+async fn load_from_file(path: &str) -> LoadFromArgsResult {
+	let path = Path::new(path);
+
+	let file = async_fs::read_to_string(path).await?;
+
+	std::env::set_current_dir(
+		path.parent()
+			.ok_or(anyhow!("Can't get parent dir of {}", path.display()))?,
+	)
+	.context("Failed to set current_dir")?;
+
+    crate::parser::parse_presentation(file)
+}
+
+async fn load_example() -> LoadFromArgsResult {
 	let slides = vec![
 		Slide(vec![
 			SlideNode::Header(
