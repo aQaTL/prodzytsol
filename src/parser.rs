@@ -99,7 +99,7 @@ pub fn parse_slides(mut input: &str) -> IResult<&str, Vec<Slide>> {
 }
 
 pub fn parse_presentation(title: String, path: PathBuf, input: &str) -> Result<Presentation> {
-	let (tail, slides) = match parse_slides(&input) {
+	let (_, slides) = match parse_slides(&input) {
 		Ok(v) => v,
 		Err(e) => anyhow::bail!("parse_presentation failed with: {:?}", e),
 	};
