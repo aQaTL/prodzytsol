@@ -25,7 +25,9 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 	)
 	.context("Failed to set current_dir")?;
 
-    crate::parser::parse_presentation(file)
+	let title = path.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
+
+    crate::parser::parse_presentation(title, &file)
 }
 
 async fn load_example() -> LoadFromArgsResult {

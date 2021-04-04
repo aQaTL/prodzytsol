@@ -73,6 +73,10 @@ impl HeaderSize {
 		let size = self as u8 as f32;
 		(100.0 * (1.0 - (size * 10.0 * 0.01))) as u16
 	}
+
+	unsafe fn from_u8_unchecked(n: u8) -> Self {
+		std::mem::transmute(n)
+	}
 }
 
 #[test]
