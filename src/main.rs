@@ -1,9 +1,15 @@
 use anyhow::Result;
 use iced::window::Mode;
 use iced::*;
+use iced_futures::BoxStream;
 use iced_native::event::Status;
 use iced_native::Event;
 use log::*;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt;
 
 mod commands;
 mod parser;
@@ -26,16 +32,18 @@ pub enum Stage {
 	Presentation {
 		presentation: Presentation,
 		state: PresentationState,
+		file_watcher: Option<FileWatch>,
 	},
 }
 
 #[derive(Debug)]
 pub struct Presentation {
 	title: String,
+	path: PathBuf,
 	slides: Vec<Slide>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PresentationState {
 	slide_idx: usize,
 }
@@ -138,15 +146,26 @@ impl Application for App {
 
 	fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
 		match message {
-			Message::Loaded(Ok(presentation)) => {
+			Message::Loaded(Ok((presentation, file_watcher))) => {
 				info!("Loaded presentation \"{}\"", presentation.title);
+
+				let state = match self.stage {
+					Stage::Presentation { ref state, .. } => state.clone(),
+					_ => PresentationState::default(),
+				};
+
 				self.stage = Stage::Presentation {
 					presentation,
-					state: Default::default(),
+					state,
+					file_watcher,
 				};
 			}
 			Message::Loaded(Err(e)) => {
 				error!("Failed to load presentation: {:?}", e);
+			}
+			Message::Reloaded => {
+				info!("Presentation file has been updated. Reloading");
+				return Command::perform(commands::load_from_args(), Message::Loaded);
 			}
 			Message::KeyboardEvent(e) => return self.handle_keyboard_event(e),
 		}
@@ -160,16 +179,29 @@ impl Application for App {
 			Stage::Presentation {
 				ref presentation,
 				ref state,
+				..
 			} => views::presentation(presentation, state),
 		}
 	}
 
 	fn subscription(&self) -> Subscription<Self::Message> {
-		iced_native::subscription::events_with(|ev, status| match (ev, status) {
+		let mut subscriptions = Vec::new();
+		if let Stage::Presentation {
+			file_watcher: Some(file_watcher),
+			..
+		} = &self.stage
+		{
+			let sub =
+				iced::Subscription::from_recipe(file_watcher.recipe()).map(|_| Message::Reloaded);
+			subscriptions.push(sub);
+		}
+		let sub = iced_native::subscription::events_with(|ev, status| match (ev, status) {
 			(_, Status::Captured) => None,
 			(Event::Keyboard(e), Status::Ignored) => Some(Message::KeyboardEvent(e)),
 			(_, Status::Ignored) => None,
-		})
+		});
+		subscriptions.push(sub);
+		Subscription::batch(subscriptions)
 	}
 
 	fn mode(&self) -> Mode {
@@ -181,6 +213,91 @@ impl Application for App {
 	}
 
 	// fn scale_factor(&self) -> f64 { }
+}
+
+pub struct FileWatch {
+	#[allow(dead_code)]
+	watcher: RecommendedWatcher,
+	sender: tokio::sync::broadcast::Sender<()>,
+	id: usize,
+}
+
+impl Debug for FileWatch {
+	fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+		f.debug_struct("FileWatch").field("id", &self.id).finish()
+	}
+}
+
+impl FileWatch {
+	pub async fn new(path: PathBuf) -> Result<Self> {
+		info!("Setting up file watcher for {}", path.display());
+		let (sender, _) = tokio::sync::broadcast::channel(10);
+		let sender_2 = sender.clone();
+
+		let watcher = RecommendedWatcher::new_immediate(move |res| match res {
+			Ok(notify::Event {
+				kind: notify::EventKind::Modify(_),
+				..
+			}) => {
+				// info!("Sending watcher update");
+				if sender_2.send(()).is_err() {
+					// error!("File watcher received end has been dropped");
+				}
+			}
+			Err(e) => {
+				error!("File watcher error: {:?}", e);
+			}
+			_ => (),
+		});
+
+		let mut watcher = match watcher {
+			Ok(v) => v,
+			Err(e) => {
+				anyhow::bail!("Failed to create file watcher: {:?}", e);
+			}
+		};
+
+		if let Err(e) = watcher.watch(&path, RecursiveMode::Recursive) {
+			anyhow::bail!("Failed to create file watcher: {:?}", e);
+		}
+
+		// let _ = receiver.changed().await?;
+		info!("File watcher set up successfully");
+
+		Ok(FileWatch {
+			watcher,
+			sender,
+			id: rand::random(),
+		})
+	}
+
+	pub fn recipe(&self) -> FileWatchRecipe {
+		FileWatchRecipe(self.id, self.sender.clone())
+	}
+}
+
+pub struct FileWatchRecipe(usize, tokio::sync::broadcast::Sender<()>);
+
+impl<H, E> iced_futures::subscription::Recipe<H, E> for FileWatchRecipe
+where
+	H: std::hash::Hasher,
+{
+	type Output = ();
+
+	fn hash(&self, state: &mut H) {
+		use std::hash::Hash;
+		std::any::TypeId::of::<Self>().hash(state);
+		self.0.hash(state);
+	}
+
+	fn stream(self: Box<Self>, _input: BoxStream<E>) -> BoxStream<Self::Output> {
+		Box::pin(
+			BroadcastStream::new(self.1.subscribe())
+				.take_while(|x| x.is_ok())
+				.fuse()
+				.map(|x| x.unwrap()),
+		)
+	}
 }
 
 impl App {
@@ -202,6 +319,7 @@ impl App {
 				if let Stage::Presentation {
 					ref presentation,
 					ref mut state,
+					..
 				} = self.stage
 				{
 					state.slide_idx = (state.slide_idx + 1).min(presentation.slides.len() - 1);
@@ -223,6 +341,7 @@ impl App {
 				if let Stage::Presentation {
 					presentation: _,
 					ref mut state,
+					..
 				} = self.stage
 				{
 					state.slide_idx = state.slide_idx.saturating_sub(1);
@@ -246,5 +365,6 @@ impl App {
 #[derive(Debug)]
 pub enum Message {
 	Loaded(commands::LoadFromArgsResult),
+	Reloaded,
 	KeyboardEvent(keyboard::Event),
 }

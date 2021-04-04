@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use iced::image;
-use std::path::Path;
+use log::error;
+use std::path::{Path, PathBuf};
 
-use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
+use crate::{FileWatch, HeaderSize, Image, Language, Presentation, Slide, SlideNode};
 
-pub type LoadFromArgsResult = Result<Presentation>;
+pub type LoadFromArgsResult = Result<(Presentation, Option<FileWatch>)>;
 
 pub async fn load_from_args() -> LoadFromArgsResult {
 	let file_path = std::env::args().skip(1).next();
@@ -19,18 +20,34 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 
 	let file = async_fs::read_to_string(path).await?;
 
-	std::env::set_current_dir(
-		path.parent()
-			.ok_or(anyhow!("Can't get parent dir of {}", path.display()))?,
-	)
-	.context("Failed to set current_dir")?;
+	// std::env::set_current_dir(
+	// 	path.parent()
+	// 		.ok_or(anyhow!("Can't get parent dir of {}", path.display()))?,
+	// )
+	// .context("Failed to set current_dir")?;
 
 	let title = path
 		.file_name()
 		.map(|x| x.to_string_lossy().to_string())
 		.unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
 
-	crate::parser::parse_presentation(title, &file)
+	let presentation = crate::parser::parse_presentation(
+		title,
+		path.parent()
+			.ok_or(anyhow!("failed to get parent of {}", path.display()))?
+			.canonicalize()?,
+		&file,
+	)?;
+
+	let file_watcher = match FileWatch::new(presentation.path.clone()).await {
+		Ok(v) => Some(v),
+		Err(e) => {
+			error!("Failed to crate file watcher: {:?}", e);
+			None
+		}
+	};
+
+	Ok((presentation, file_watcher))
 }
 
 async fn load_example() -> LoadFromArgsResult {
@@ -103,9 +120,10 @@ fn sqrt(n: f64) -> SqrtResult {
 
 	let presentation = Presentation {
 		title: "Rust - wprowadzenie.aqaprez".to_string(),
+		path: PathBuf::from("."),
 		slides,
 	};
-	Ok(presentation)
+	Ok((presentation, None))
 }
 
 async fn load_image(path: &str) -> Result<Image> {

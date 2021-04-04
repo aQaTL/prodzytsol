@@ -9,14 +9,19 @@ license = "MIT"
 
 [dependencies]
 iced_native = { git = "https://github.com/hecrj/iced.git", rev = "842d54732bce8f9c8b070d9bed9809b70ed728a7" }
+iced_futures = { git = "https://github.com/hecrj/iced.git", rev = "842d54732bce8f9c8b070d9bed9809b70ed728a7" }
 anyhow = "1.0"
 log = "0.4"
 flexi_logger = "0.17"
 unicode-segmentation = "1.7"
 async-fs = "1.5"
 nom = "6.1"
+notify = "5.0.0-pre.6"
+tokio = { version = "1.0", features = ["sync"] }
+tokio-stream = { version = "0.1.5", features = ["sync"] }
+rand = "0.8.3"
 
 [dependencies.iced]
 git = "https://github.com/hecrj/iced.git"
 rev = "842d54732bce8f9c8b070d9bed9809b70ed728a7"
-features = ["image"]
+features = ["image", "tokio"]

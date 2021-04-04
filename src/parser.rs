@@ -7,6 +7,7 @@ use nom::error::ParseError;
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
 use crate::{HeaderSize, Presentation, Slide, SlideNode};
+use std::path::PathBuf;
 
 #[cfg(test)]
 static SAMPLE_PRESENTATION: &str = r######"## Wprowadzenie do Rusta, dla tych, którzy już trochę programować umieją
@@ -97,13 +98,16 @@ pub fn parse_slides(mut input: &str) -> IResult<&str, Vec<Slide>> {
 	Ok((input, slides))
 }
 
-pub fn parse_presentation(title: String, input: &str) -> Result<Presentation> {
+pub fn parse_presentation(title: String, path: PathBuf, input: &str) -> Result<Presentation> {
 	let (tail, slides) = match parse_slides(&input) {
 		Ok(v) => v,
 		Err(e) => anyhow::bail!("parse_presentation failed with: {:?}", e),
 	};
-	println!("tail: {}", tail);
-	Ok(Presentation { title, slides })
+	Ok(Presentation {
+		title,
+		path,
+		slides,
+	})
 }
 
 #[cfg(test)]
