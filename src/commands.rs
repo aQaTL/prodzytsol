@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use iced::image;
 use std::path::Path;
 
-use crate::{HeaderSize, Language, Presentation, Slide, SlideNode};
+use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
 
 pub type LoadFromArgsResult = Result<Presentation>;
 
@@ -25,9 +25,12 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 	)
 	.context("Failed to set current_dir")?;
 
-	let title = path.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
+	let title = path
+		.file_name()
+		.map(|x| x.to_string_lossy().to_string())
+		.unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
 
-    crate::parser::parse_presentation(title, &file)
+	crate::parser::parse_presentation(title, &file)
 }
 
 async fn load_example() -> LoadFromArgsResult {
@@ -105,7 +108,10 @@ fn sqrt(n: f64) -> SqrtResult {
 	Ok(presentation)
 }
 
-async fn load_image(path: &str) -> Result<image::Handle> {
+async fn load_image(path: &str) -> Result<Image> {
 	let handle = image::Handle::from_path(format!("assets/{}", path));
-	Ok(handle)
+	Ok(Image {
+		name: path.to_string(),
+		handle,
+	})
 }

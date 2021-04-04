@@ -1,4 +1,4 @@
-use crate::{App, HeaderSize, Language, Presentation, PresentationState, Slide, SlideNode};
+use crate::{App, HeaderSize, Image, Language, Presentation, PresentationState, Slide, SlideNode};
 use iced::*;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -50,7 +50,10 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			SlideNode::NumberedList(list) => {
 				column = column.push(numbered_list(list));
 			}
-			SlideNode::Image(handle) => {
+			SlideNode::Image(Image {
+				name: _name,
+				handle,
+			}) => {
 				column = column.push(image::Image::new(handle.clone()));
 			}
 			SlideNode::CodeBlock(lang, txt) => {

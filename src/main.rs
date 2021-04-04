@@ -6,8 +6,8 @@ use iced_native::Event;
 use log::*;
 
 mod commands;
-mod views;
 mod parser;
+mod views;
 
 fn main() -> Result<()> {
 	flexi_logger::Logger::with_env_or_str(concat!(env!("CARGO_PKG_NAME"), "=debug")).start()?;
@@ -40,25 +40,39 @@ pub struct PresentationState {
 	slide_idx: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Slide(Vec<SlideNode>);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum SlideNode {
 	Header(HeaderSize, String),
 	Text(String),
 	UnnumberedList(Vec<String>),
 	NumberedList(Vec<String>),
-	Image(image::Handle),
+	Image(Image),
 	CodeBlock(Language, String),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
+pub struct Image {
+	name: String,
+	handle: image::Handle,
+}
+
+impl PartialEq for Image {
+	fn eq(&self, other: &Self) -> bool {
+		self.name == other.name
+	}
+}
+
+impl Eq for Image {}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Language {
 	Rust,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u8)]
 pub enum HeaderSize {
 	One = 1,
