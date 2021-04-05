@@ -144,7 +144,11 @@ impl Application for App {
 		}
 	}
 
-	fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+	fn update(
+		&mut self,
+		message: Self::Message,
+		_clipboard: &mut Clipboard,
+	) -> Command<Self::Message> {
 		match message {
 			Message::Loaded(Ok((presentation, file_watcher))) => {
 				info!("Loaded presentation \"{}\"", presentation.title);
