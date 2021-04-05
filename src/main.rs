@@ -150,12 +150,25 @@ impl Application for App {
 		_clipboard: &mut Clipboard,
 	) -> Command<Self::Message> {
 		match message {
-			Message::Loaded(Ok((presentation, file_watcher))) => {
+			Message::Loaded(Ok(presentation)) => {
 				info!("Loaded presentation \"{}\"", presentation.title);
 
-				let state = match self.stage {
-					Stage::Presentation { ref state, .. } => state.clone(),
-					_ => PresentationState::default(),
+				let (state, file_watcher) = match self.stage {
+					Stage::Presentation {
+						ref state,
+						ref mut file_watcher,
+						..
+					} => (state.clone(), file_watcher.take()),
+					_ => (PresentationState::default(), None),
+				};
+
+				let cmd = if file_watcher.is_none() {
+					Command::perform(
+						commands::start_file_watcher(presentation.path.clone()),
+						Message::FileWatcherStarted,
+					)
+				} else {
+					Command::none()
 				};
 
 				self.stage = Stage::Presentation {
@@ -163,10 +176,22 @@ impl Application for App {
 					state,
 					file_watcher,
 				};
+
+				return cmd;
 			}
 			Message::Loaded(Err(e)) => {
 				error!("Failed to load presentation: {:?}", e);
 			}
+			Message::FileWatcherStarted(Some(new_file_watcher)) => {
+				if let Stage::Presentation {
+					ref mut file_watcher,
+					..
+				} = self.stage
+				{
+					*file_watcher = Some(new_file_watcher);
+				}
+			}
+			Message::FileWatcherStarted(None) => (),
 			Message::Reloaded => {
 				info!("Presentation file has been updated. Reloading");
 				return Command::perform(commands::load_from_args(), Message::Loaded);
@@ -245,7 +270,7 @@ impl FileWatch {
 			}) => {
 				// info!("Sending watcher update");
 				if sender_2.send(()).is_err() {
-					// error!("File watcher received end has been dropped");
+					error!("File watcher received end has been dropped");
 				}
 			}
 			Err(e) => {
@@ -295,6 +320,7 @@ where
 	}
 
 	fn stream(self: Box<Self>, _input: BoxStream<E>) -> BoxStream<Self::Output> {
+		info!("Creating new FileWatchRecipe stream");
 		Box::pin(
 			BroadcastStream::new(self.1.subscribe())
 				.take_while(|x| x.is_ok())
@@ -369,6 +395,7 @@ impl App {
 #[derive(Debug)]
 pub enum Message {
 	Loaded(commands::LoadFromArgsResult),
+	FileWatcherStarted(commands::StartFileWatcherResult),
 	Reloaded,
 	KeyboardEvent(keyboard::Event),
 }

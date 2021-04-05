@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{FileWatch, HeaderSize, Image, Language, Presentation, Slide, SlideNode};
 
-pub type LoadFromArgsResult = Result<(Presentation, Option<FileWatch>)>;
+pub type LoadFromArgsResult = Result<Presentation>;
 
 pub async fn load_from_args() -> LoadFromArgsResult {
 	let file_path = std::env::args().skip(1).next();
@@ -39,15 +39,19 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 		&file,
 	)?;
 
-	let file_watcher = match FileWatch::new(presentation.path.clone()).await {
+	Ok(presentation)
+}
+
+pub type StartFileWatcherResult = Option<FileWatch>;
+
+pub async fn start_file_watcher(path: PathBuf) -> StartFileWatcherResult {
+	match FileWatch::new(path).await {
 		Ok(v) => Some(v),
 		Err(e) => {
 			error!("Failed to crate file watcher: {:?}", e);
 			None
 		}
-	};
-
-	Ok((presentation, file_watcher))
+	}
 }
 
 async fn load_example() -> LoadFromArgsResult {
@@ -123,7 +127,7 @@ fn sqrt(n: f64) -> SqrtResult {
 		path: PathBuf::from("."),
 		slides,
 	};
-	Ok((presentation, None))
+	Ok(presentation)
 }
 
 async fn load_image(path: &str) -> Result<Image> {
