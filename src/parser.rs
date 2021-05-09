@@ -4,10 +4,11 @@ use nom::bytes::complete::{is_not, tag, take_while_m_n};
 use nom::character::complete::{char, space1};
 use nom::combinator::{map, map_res};
 use nom::error::ParseError;
-use nom::sequence::delimited;
+use nom::sequence::{delimited, preceded};
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
 use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
+use nom::multi::many1;
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -57,6 +58,32 @@ fn parse_header(input: &str) -> IResult<&str, (HeaderSize, String)> {
 	Ok((tail, (header_size, header_str.trim().to_string())))
 }
 
+fn parse_unnumbered_list(input: &str) -> IResult<&str, Vec<String>> {
+	let (tail, items) = map(
+		many1(preceded(tag("- "), till_pat_consuming("\n"))),
+		|items| {
+			items
+				.into_iter()
+				.map(ToString::to_string)
+				.collect::<Vec<_>>()
+		},
+	)(input)?;
+	let (tail, _) = tag("\n")(tail)?;
+
+	Ok((tail, items))
+}
+
+fn parse_code_block(input: &str) -> IResult<&str, (Language, String)> {
+	let (tail, _) = tag("```")(input)?;
+	let (tail, language) =
+		map_res(till_pat_consuming("\n"), |lang| lang.parse::<Language>())(tail)?;
+	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
+
+	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
+
+	Ok((tail, (language, code_block.to_string())))
+}
+
 fn parse_image(input: &str) -> IResult<&str, Image> {
 	let (tail, _) = char('!')(input)?;
 	let (tail, alt_text) = delimited(char('['), is_not("]"), char(']'))(tail)?;
@@ -74,17 +101,6 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 	))
 }
 
-fn parse_code_block(input: &str) -> IResult<&str, (Language, String)> {
-	let (tail, _) = tag("```")(input)?;
-	let (tail, language) =
-		map_res(till_pat_consuming("\n"), |lang| lang.parse::<Language>())(tail)?;
-	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
-
-	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
-
-	Ok((tail, (language, code_block.to_string())))
-}
-
 fn parse_text_section(input: &str) -> IResult<&str, String> {
 	let (tail, text_str) = till_pat_consuming("\n\n").parse(input)?;
 
@@ -95,6 +111,9 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 	alt((
 		map(parse_header, |(header_size, header)| {
 			SlideNode::Header(header_size, header)
+		}),
+		map(parse_unnumbered_list, |items| {
+			SlideNode::UnnumberedList(items)
 		}),
 		map(parse_code_block, |(language, code_block)| {
 			SlideNode::CodeBlock(language, code_block)
@@ -248,7 +267,27 @@ fn main() {
 	}
 
 	#[test]
-	fn parse_code_block_as_slide() -> Result<()> {
+	fn parse_list_slide() -> Result<()> {
+		let expected = Slide(vec![SlideNode::UnnumberedList(vec![
+			"Ala".to_string(),
+			"ma".to_string(),
+			"kota".to_string(),
+		])]);
+
+		let (_, slide) = super::parse_slide(
+			r#"- Ala
+- ma
+- kota
+
+"#,
+		)?;
+
+		assert_eq!(slide, expected);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block_slide() -> Result<()> {
 		let expected = Slide(vec![SlideNode::CodeBlock(
 			Language::Rust,
 			r#"enum Result<T, E> {
@@ -283,7 +322,7 @@ fn main() {
 	}
 
 	#[test]
-	fn parse_image_as_slide() -> Result<()> {
+	fn parse_image_slide() -> Result<()> {
 		let expected = Slide(vec![SlideNode::Image(Image {
 			path: "ferris.png".to_string(),
 			alt_text: "ferris".to_string(),
