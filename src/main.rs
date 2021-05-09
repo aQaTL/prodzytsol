@@ -8,6 +8,7 @@ use log::*;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
+use std::str::FromStr;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 
@@ -79,6 +80,18 @@ impl Eq for Image {}
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Language {
 	Rust,
+}
+
+impl FromStr for Language {
+	type Err = anyhow::Error;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		use Language::*;
+		Ok(match s {
+			"rust" => Rust,
+			_ => anyhow::bail!("Unknown language {}", s),
+		})
+	}
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

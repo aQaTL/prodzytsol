@@ -1,13 +1,13 @@
 use anyhow::Result;
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, take_while_m_n};
+use nom::bytes::complete::{is_not, tag, take_while_m_n};
 use nom::character::complete::{char, space1};
-use nom::combinator::map;
+use nom::combinator::{map, map_res};
 use nom::error::ParseError;
 use nom::sequence::delimited;
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
-use crate::{HeaderSize, Image, Presentation, Slide, SlideNode};
+use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -74,6 +74,17 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 	))
 }
 
+fn parse_code_block(input: &str) -> IResult<&str, (Language, String)> {
+	let (tail, _) = tag("```")(input)?;
+	let (tail, language) =
+		map_res(till_pat_consuming("\n"), |lang| lang.parse::<Language>())(tail)?;
+	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
+
+	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
+
+	Ok((tail, (language, code_block.to_string())))
+}
+
 fn parse_text_section(input: &str) -> IResult<&str, String> {
 	let (tail, text_str) = till_pat_consuming("\n\n").parse(input)?;
 
@@ -84,6 +95,9 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 	alt((
 		map(parse_header, |(header_size, header)| {
 			SlideNode::Header(header_size, header)
+		}),
+		map(parse_code_block, |(language, code_block)| {
+			SlideNode::CodeBlock(language, code_block)
 		}),
 		map(parse_image, |image| SlideNode::Image(image)),
 		map(parse_text_section, |text| SlideNode::Text(text)),
@@ -134,7 +148,7 @@ mod tests {
 	use anyhow::Result;
 
 	use super::*;
-	use crate::Image;
+	use crate::{Image, Language};
 
 	#[test]
 	fn parse_presentation_test() -> Result<()> {
@@ -195,8 +209,76 @@ mod tests {
 		let (_, image) = super::parse_image("![Ferris the crab](ferris.png)")?;
 		println!("{:?}", image);
 		println!("{:?}", expected);
-		assert_eq!(image, expected);
 
+		assert_eq!(image, expected);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block() -> Result<()> {
+		let expected = (
+			Language::Rust,
+			r#"enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+"#
+			.to_string(),
+		);
+
+		let (_, code_block) = super::parse_code_block(
+			r#"```rust
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```"#,
+		)?;
+
+		assert_eq!(expected, code_block);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block_as_slide() -> Result<()> {
+		let expected = Slide(vec![SlideNode::CodeBlock(
+			Language::Rust,
+			r#"enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+"#
+			.to_string(),
+		)]);
+
+		let (_, slide) = super::parse_slide(
+			r#"```rust
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```
+
+"#,
+		)?;
+
+		assert_eq!(expected, slide);
 		Ok(())
 	}
 

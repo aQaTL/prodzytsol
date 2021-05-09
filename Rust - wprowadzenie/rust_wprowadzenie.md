@@ -14,7 +14,6 @@ Maciej Sołtys
 
 # Rust
 
-
 tutaj jakiś wstęp / najważniejsze punkty
 
 ---
@@ -151,7 +150,7 @@ Nie ma.
 
 ### `Option`
 
-```rust=
+```rust
 enum Option<T> {
 	Some(T),
 	None,
