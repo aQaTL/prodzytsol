@@ -62,6 +62,8 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 	let (tail, alt_text) = delimited(char('['), is_not("]"), char(']'))(tail)?;
 	let (tail, path) = delimited(char('('), is_not(")"), char(')'))(tail)?;
 
+	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
+
 	Ok((
 		tail,
 		Image {
@@ -133,7 +135,6 @@ mod tests {
 
 	use super::*;
 	use crate::Image;
-	use iced::image;
 
 	#[test]
 	fn parse_presentation_test() -> Result<()> {
@@ -203,7 +204,7 @@ mod tests {
 	fn parse_image_as_slide() -> Result<()> {
 		let expected = Slide(vec![SlideNode::Image(Image {
 			path: "ferris.png".to_string(),
-			alt_text: "Ferris the crab".to_string(),
+			alt_text: "ferris".to_string(),
 			handle: None,
 		})]);
 
