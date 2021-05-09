@@ -6,9 +6,9 @@ Maciej Sołtys
 
 ### Wersja dla tych, którzy umieją, czyli
 
-- Szybki przegląd składni, typów
-- Ficzery
-- Różnice (C++ / Java / C# / Go)
+1. Szybki przegląd składni, typów
+1. Ficzery
+1. Różnice (C++ / Java / C# / Go)
 
 ---
 

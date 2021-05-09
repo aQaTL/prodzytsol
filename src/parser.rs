@@ -1,10 +1,10 @@
 use anyhow::Result;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, take_while_m_n};
-use nom::character::complete::{char, space1};
-use nom::combinator::{map, map_res};
+use nom::character::complete::{char, digit1, space1};
+use nom::combinator::{map, map_res, opt};
 use nom::error::ParseError;
-use nom::sequence::{delimited, preceded};
+use nom::sequence::{delimited, preceded, tuple};
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
 use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
@@ -60,7 +60,28 @@ fn parse_header(input: &str) -> IResult<&str, (HeaderSize, String)> {
 
 fn parse_unnumbered_list(input: &str) -> IResult<&str, Vec<String>> {
 	let (tail, items) = map(
-		many1(preceded(tag("- "), till_pat_consuming("\n"))),
+		many1(preceded(
+			tuple((char('-'), space1)),
+			till_pat_consuming("\n"),
+		)),
+		|items| {
+			items
+				.into_iter()
+				.map(ToString::to_string)
+				.collect::<Vec<_>>()
+		},
+	)(input)?;
+	let (tail, _) = tag("\n")(tail)?;
+
+	Ok((tail, items))
+}
+
+fn parse_numbered_list(input: &str) -> IResult<&str, Vec<String>> {
+	let (tail, items) = map(
+		many1(preceded(
+			tuple((digit1, opt(char('.')), space1)),
+			till_pat_consuming("\n"),
+		)),
 		|items| {
 			items
 				.into_iter()
@@ -115,6 +136,7 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 		map(parse_unnumbered_list, |items| {
 			SlideNode::UnnumberedList(items)
 		}),
+		map(parse_numbered_list, |items| SlideNode::NumberedList(items)),
 		map(parse_code_block, |(language, code_block)| {
 			SlideNode::CodeBlock(language, code_block)
 		}),
@@ -267,7 +289,7 @@ fn main() {
 	}
 
 	#[test]
-	fn parse_list_slide() -> Result<()> {
+	fn parse_unnumbered_list_slide() -> Result<()> {
 		let expected = Slide(vec![SlideNode::UnnumberedList(vec![
 			"Ala".to_string(),
 			"ma".to_string(),
@@ -275,9 +297,29 @@ fn main() {
 		])]);
 
 		let (_, slide) = super::parse_slide(
-			r#"- Ala
+			r#"-    Ala
 - ma
 - kota
+
+"#,
+		)?;
+
+		assert_eq!(slide, expected);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_numbered_list_slide() -> Result<()> {
+		let expected = Slide(vec![SlideNode::NumberedList(vec![
+			"Ala".to_string(),
+			"ma".to_string(),
+			"kota".to_string(),
+		])]);
+
+		let (_, slide) = super::parse_slide(
+			r#"1. Ala
+2. ma
+3.    kota
 
 "#,
 		)?;
