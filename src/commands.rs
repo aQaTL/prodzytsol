@@ -20,24 +20,37 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 
 	let file = async_fs::read_to_string(path).await?;
 
-	// std::env::set_current_dir(
-	// 	path.parent()
-	// 		.ok_or(anyhow!("Can't get parent dir of {}", path.display()))?,
-	// )
-	// .context("Failed to set current_dir")?;
-
 	let title = path
 		.file_name()
 		.map(|x| x.to_string_lossy().to_string())
 		.unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
 
-	let presentation = crate::parser::parse_presentation(
-		title,
-		path.parent()
-			.ok_or(anyhow!("failed to get parent of {}", path.display()))?
-			.canonicalize()?,
-		&file,
-	)?;
+	let presentation_dir = path
+		.parent()
+		.ok_or(anyhow!("failed to get parent of {}", path.display()))?
+		.canonicalize()?;
+
+	let mut presentation =
+		crate::parser::parse_presentation(title, presentation_dir.clone(), &file)?;
+
+	presentation
+		.slides
+		.iter_mut()
+		.flat_map(|slide| slide.0.iter_mut())
+		.filter_map(|node| match node {
+			SlideNode::Image(ref mut img) => Some(img),
+			_ => None,
+		})
+		.for_each(|image| {
+			let path = presentation_dir.join(&image.path);
+			if !path.exists() || !path.is_file() {
+				log::error!("{} not found", path.display());
+				return;
+			}
+
+			let handle = image::Handle::from_path(path);
+			image.handle = Some(handle);
+		});
 
 	Ok(presentation)
 }
@@ -123,7 +136,7 @@ fn sqrt(n: f64) -> SqrtResult {
 	];
 
 	let presentation = Presentation {
-		title: "Rust - wprowadzenie.aqaprez".to_string(),
+		title: "Example presentation".to_string(),
 		path: PathBuf::from("."),
 		slides,
 	};
@@ -131,9 +144,10 @@ fn sqrt(n: f64) -> SqrtResult {
 }
 
 async fn load_image(path: &str) -> Result<Image> {
-	let handle = image::Handle::from_path(format!("assets/{}", path));
+	let handle = Some(image::Handle::from_path(format!("assets/{}", path)));
 	Ok(Image {
-		name: path.to_string(),
+		path: path.to_string(),
+		alt_text: "Ferris the crab".to_string(),
 		handle,
 	})
 }

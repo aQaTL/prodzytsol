@@ -19,6 +19,12 @@ tutaj jakiś wstęp / najważniejsze punkty
 
 ---
 
+# Ferris
+
+![ferris](assets/ferris.png)
+
+---
+
 Live demo
 
 ---

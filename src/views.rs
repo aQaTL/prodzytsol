@@ -51,10 +51,16 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 				column = column.push(numbered_list(list));
 			}
 			SlideNode::Image(Image {
-				name: _name,
+				path: _name,
+				alt_text,
 				handle,
 			}) => {
-				column = column.push(image::Image::new(handle.clone()));
+				let image: iced::Element<_> = match handle {
+					Some(ref handle) => image::Image::new(handle.clone()).into(),
+					None => text(alt_text).into(),
+				};
+
+				column = column.push(image);
 			}
 			SlideNode::CodeBlock(lang, txt) => {
 				column = column.push(code_block(*lang, txt));

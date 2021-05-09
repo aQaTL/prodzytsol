@@ -1,12 +1,13 @@
 use anyhow::Result;
 use nom::branch::alt;
-use nom::bytes::complete::take_while_m_n;
-use nom::character::complete::space1;
+use nom::bytes::complete::{is_not, take_while_m_n};
+use nom::character::complete::{char, space1};
 use nom::combinator::map;
 use nom::error::ParseError;
+use nom::sequence::delimited;
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
-use crate::{HeaderSize, Presentation, Slide, SlideNode};
+use crate::{HeaderSize, Image, Presentation, Slide, SlideNode};
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -56,6 +57,21 @@ fn parse_header(input: &str) -> IResult<&str, (HeaderSize, String)> {
 	Ok((tail, (header_size, header_str.trim().to_string())))
 }
 
+fn parse_image(input: &str) -> IResult<&str, Image> {
+	let (tail, _) = char('!')(input)?;
+	let (tail, alt_text) = delimited(char('['), is_not("]"), char(']'))(tail)?;
+	let (tail, path) = delimited(char('('), is_not(")"), char(')'))(tail)?;
+
+	Ok((
+		tail,
+		Image {
+			path: path.to_string(),
+			alt_text: alt_text.to_string(),
+			handle: None,
+		},
+	))
+}
+
 fn parse_text_section(input: &str) -> IResult<&str, String> {
 	let (tail, text_str) = till_pat_consuming("\n\n").parse(input)?;
 
@@ -67,6 +83,7 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 		map(parse_header, |(header_size, header)| {
 			SlideNode::Header(header_size, header)
 		}),
+		map(parse_image, |image| SlideNode::Image(image)),
 		map(parse_text_section, |text| SlideNode::Text(text)),
 	))(input)
 }
@@ -115,11 +132,16 @@ mod tests {
 	use anyhow::Result;
 
 	use super::*;
+	use crate::Image;
+	use iced::image;
 
 	#[test]
 	fn parse_presentation_test() -> Result<()> {
-		let presentation =
-			parse_presentation(String::from("test presentation"), SAMPLE_PRESENTATION)?;
+		let presentation = parse_presentation(
+			String::from("test presentation"),
+			PathBuf::from("test presentation.md"),
+			SAMPLE_PRESENTATION,
+		)?;
 		println!("{:#?}", presentation);
 
 		Ok(())
@@ -155,6 +177,37 @@ mod tests {
 		assert_eq!(slide_nodes, expected);
 
 		let (_, slide_nodes) = parse_slide("### hi1\n\n## Hello 2\n")?;
+		assert_eq!(slide_nodes, expected);
+
+		Ok(())
+	}
+
+	#[test]
+	fn parse_image() -> Result<()> {
+		let expected = Image {
+			path: "ferris.png".to_string(),
+			alt_text: "Ferris the crab".to_string(),
+			// handle isn't compared
+			handle: None,
+		};
+
+		let (_, image) = super::parse_image("![Ferris the crab](ferris.png)")?;
+		println!("{:?}", image);
+		println!("{:?}", expected);
+		assert_eq!(image, expected);
+
+		Ok(())
+	}
+
+	#[test]
+	fn parse_image_as_slide() -> Result<()> {
+		let expected = Slide(vec![SlideNode::Image(Image {
+			path: "ferris.png".to_string(),
+			alt_text: "Ferris the crab".to_string(),
+			handle: None,
+		})]);
+
+		let (_, slide_nodes) = parse_slide("![ferris](ferris.png)\n\n")?;
 		assert_eq!(slide_nodes, expected);
 
 		Ok(())

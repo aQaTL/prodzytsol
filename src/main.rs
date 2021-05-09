@@ -63,13 +63,14 @@ pub enum SlideNode {
 
 #[derive(Debug)]
 pub struct Image {
-	name: String,
-	handle: image::Handle,
+	path: String,
+	alt_text: String,
+	handle: Option<image::Handle>,
 }
 
 impl PartialEq for Image {
 	fn eq(&self, other: &Self) -> bool {
-		self.name == other.name
+		self.path == other.path && self.alt_text == other.alt_text
 	}
 }
 
