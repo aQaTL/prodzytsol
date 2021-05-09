@@ -50,7 +50,10 @@ pub struct PresentationState {
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Slide(Vec<SlideNode>);
+pub struct Slide {
+	nodes: Vec<SlideNode>,
+	background: Option<Image>,
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SlideNode {

@@ -19,7 +19,10 @@ pub fn welcome_screen() -> Element {
 		.into()
 }
 
-static DEFAULT_SLIDE: Slide = Slide(Vec::new());
+static DEFAULT_SLIDE: Slide = Slide {
+	nodes: Vec::new(),
+	background: None,
+};
 
 pub fn presentation(presentation: &Presentation, state: &PresentationState) -> Element {
 	let slide = match presentation.slides.get(state.slide_idx) {
@@ -36,7 +39,7 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 
 	let mut column = Column::new().spacing(10).align_items(Align::Center);
 
-	for element in &slide.0 {
+	for element in &slide.nodes {
 		match element {
 			SlideNode::Header(size, txt) => {
 				column = column.push(header(*size, txt));
@@ -67,6 +70,8 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			}
 		}
 	}
+
+	//TODO: Background image. Tracking issue: https://github.com/hecrj/iced/issues/450
 
 	Container::new(column)
 		.width(Length::Fill)

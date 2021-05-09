@@ -36,7 +36,7 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 	presentation
 		.slides
 		.iter_mut()
-		.flat_map(|slide| slide.0.iter_mut())
+		.flat_map(|slide| slide.nodes.iter_mut())
 		.filter_map(|node| match node {
 			SlideNode::Image(ref mut img) => Some(img),
 			_ => None,
@@ -69,50 +69,63 @@ pub async fn start_file_watcher(path: PathBuf) -> StartFileWatcherResult {
 
 async fn load_example() -> LoadFromArgsResult {
 	let slides = vec![
-		Slide(vec![
-			SlideNode::Header(
-				HeaderSize::Two,
-				String::from(
-					"Wprowadzenie do Rusta dla tych, którzy już trochę programować umieją",
+		Slide {
+			nodes: vec![
+				SlideNode::Header(
+					HeaderSize::Two,
+					String::from(
+						"Wprowadzenie do Rusta dla tych, którzy już trochę programować umieją",
+					),
 				),
-			),
-			SlideNode::Text(String::from("Maciej Sołtys")),
-			// SlideNode::Header(HeaderSize::Four, String::from("Maciej Sołtys")),
-		]),
-		Slide(vec![
-			SlideNode::Header(
-				HeaderSize::Three,
-				String::from("Wersja dla tych, którzy umieją, czyli"),
-			),
-			SlideNode::UnnumberedList(vec![
-				String::from("Szybki przegląd składni, typów"),
-				String::from("Feature'y"),
-				String::from("Różnice (C++ / Java / C# / Go)"),
-			]),
-		]),
-		Slide(vec![
-			SlideNode::Header(HeaderSize::One, String::from("Ferris")),
-			SlideNode::Image(load_image("ferris.png").await?),
-		]),
-		Slide(vec![
-			SlideNode::Header(HeaderSize::Two, String::from("while loop")),
-			SlideNode::CodeBlock(
-				Language::Rust,
-				String::from(
-					r#"let mut a = 0;
+				SlideNode::Text(String::from("Maciej Sołtys")),
+				// SlideNode::Header(HeaderSize::Four, String::from("Maciej Sołtys")),
+			],
+			..Default::default()
+		},
+		Slide {
+			nodes: vec![
+				SlideNode::Header(
+					HeaderSize::Three,
+					String::from("Wersja dla tych, którzy umieją, czyli"),
+				),
+				SlideNode::UnnumberedList(vec![
+					String::from("Szybki przegląd składni, typów"),
+					String::from("Feature'y"),
+					String::from("Różnice (C++ / Java / C# / Go)"),
+				]),
+			],
+			..Default::default()
+		},
+		Slide {
+			nodes: vec![
+				SlideNode::Header(HeaderSize::One, String::from("Ferris")),
+				SlideNode::Image(load_image("ferris.png").await?),
+			],
+			..Default::default()
+		},
+		Slide {
+			nodes: vec![
+				SlideNode::Header(HeaderSize::Two, String::from("while loop")),
+				SlideNode::CodeBlock(
+					Language::Rust,
+					String::from(
+						r#"let mut a = 0;
 
 while a < 10 {
 	a += 1;
 }"#,
+					),
 				),
-			),
-		]),
-		Slide(vec![
-			SlideNode::Header(HeaderSize::Two, String::from("enum")),
-			SlideNode::CodeBlock(
-				Language::Rust,
-				String::from(
-					r#"enum SqrtResult {
+			],
+			..Default::default()
+		},
+		Slide {
+			nodes: vec![
+				SlideNode::Header(HeaderSize::Two, String::from("enum")),
+				SlideNode::CodeBlock(
+					Language::Rust,
+					String::from(
+						r#"enum SqrtResult {
 	Success(f64),
 	Fail(SqrtError),
 }
@@ -130,9 +143,11 @@ fn sqrt(n: f64) -> SqrtResult {
 
 	Ok(sqrt_result)
 }"#,
+					),
 				),
-			),
-		]),
+			],
+			..Default::default()
+		},
 	];
 
 	let presentation = Presentation {

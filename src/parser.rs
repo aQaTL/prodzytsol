@@ -107,7 +107,7 @@ fn parse_code_block(input: &str) -> IResult<&str, (Language, String)> {
 
 fn parse_image(input: &str) -> IResult<&str, Image> {
 	let (tail, _) = char('!')(input)?;
-	let (tail, alt_text) = delimited(char('['), is_not("]"), char(']'))(tail)?;
+	let (tail, alt_text) = delimited(char('['), opt(is_not("]")), char(']'))(tail)?;
 	let (tail, path) = delimited(char('('), is_not(")"), char(')'))(tail)?;
 
 	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
@@ -116,7 +116,7 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 		tail,
 		Image {
 			path: path.to_string(),
-			alt_text: alt_text.to_string(),
+			alt_text: alt_text.map(ToString::to_string).unwrap_or_default(),
 			handle: None,
 		},
 	))
@@ -145,19 +145,45 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 	))(input)
 }
 
+fn parse_slide_divider(input: &str) -> IResult<&str, Option<Image>> {
+	let (tail, _) = tag("---")(input)?;
+	let (tail, background) = opt(parse_image)(tail)?;
+	Ok((tail, background))
+}
+
 fn parse_slide(mut input: &str) -> IResult<&str, Slide> {
 	let mut slide_nodes = Vec::new();
 
+	let mut background = None;
+
 	while !input.is_empty() {
+		if let Ok((tail, new_background)) = parse_slide_divider(input) {
+			if slide_nodes.is_empty() {
+				background = new_background;
+			} else {
+				return Ok((
+					input,
+					Slide {
+						nodes: slide_nodes,
+						background,
+					},
+				));
+			}
+			input = tail;
+			continue;
+		}
 		let (tail, slide_node) = parse_slide_node(input)?;
 		input = tail;
-		match slide_node {
-			SlideNode::Text(t) if t == "---" => break,
-			_ => slide_nodes.push(slide_node),
-		}
+		slide_nodes.push(slide_node);
 	}
 
-	Ok((input, Slide(slide_nodes)))
+	Ok((
+		input,
+		Slide {
+			nodes: slide_nodes,
+			background,
+		},
+	))
 }
 
 pub fn parse_slides(mut input: &str) -> IResult<&str, Vec<Slide>> {
@@ -221,10 +247,13 @@ mod tests {
 
 	#[test]
 	fn parse_headers() -> Result<()> {
-		let expected = Slide(vec![
-			SlideNode::Header(HeaderSize::Three, String::from("hi1")),
-			SlideNode::Header(HeaderSize::Two, String::from("Hello 2")),
-		]);
+		let expected = Slide {
+			nodes: vec![
+				SlideNode::Header(HeaderSize::Three, String::from("hi1")),
+				SlideNode::Header(HeaderSize::Two, String::from("Hello 2")),
+			],
+			..Default::default()
+		};
 
 		let (_, slide_nodes) = parse_slide("### hi1\n\n## Hello 2\n\n")?;
 		assert_eq!(slide_nodes, expected);
@@ -252,6 +281,21 @@ mod tests {
 		println!("{:?}", expected);
 
 		assert_eq!(image, expected);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_image_with_empty_alt_text() -> Result<()> {
+		let expected = Image {
+			path: "ferris.png".to_string(),
+			alt_text: "".to_string(),
+			// handle isn't compared
+			handle: None,
+		};
+
+		let (_, image) = super::parse_image("![](ferris.png)")?;
+		assert_eq!(expected, image);
+
 		Ok(())
 	}
 
@@ -290,11 +334,14 @@ fn main() {
 
 	#[test]
 	fn parse_unnumbered_list_slide() -> Result<()> {
-		let expected = Slide(vec![SlideNode::UnnumberedList(vec![
-			"Ala".to_string(),
-			"ma".to_string(),
-			"kota".to_string(),
-		])]);
+		let expected = Slide {
+			nodes: vec![SlideNode::UnnumberedList(vec![
+				"Ala".to_string(),
+				"ma".to_string(),
+				"kota".to_string(),
+			])],
+			..Default::default()
+		};
 
 		let (_, slide) = super::parse_slide(
 			r#"-    Ala
@@ -310,11 +357,14 @@ fn main() {
 
 	#[test]
 	fn parse_numbered_list_slide() -> Result<()> {
-		let expected = Slide(vec![SlideNode::NumberedList(vec![
-			"Ala".to_string(),
-			"ma".to_string(),
-			"kota".to_string(),
-		])]);
+		let expected = Slide {
+			nodes: vec![SlideNode::NumberedList(vec![
+				"Ala".to_string(),
+				"ma".to_string(),
+				"kota".to_string(),
+			])],
+			background: None,
+		};
 
 		let (_, slide) = super::parse_slide(
 			r#"1. Ala
@@ -330,9 +380,10 @@ fn main() {
 
 	#[test]
 	fn parse_code_block_slide() -> Result<()> {
-		let expected = Slide(vec![SlideNode::CodeBlock(
-			Language::Rust,
-			r#"enum Result<T, E> {
+		let expected = Slide {
+			nodes: vec![SlideNode::CodeBlock(
+				Language::Rust,
+				r#"enum Result<T, E> {
 	Ok(T),
 	Err(E),
 }
@@ -341,8 +392,10 @@ fn main() {
 	println!("Hello, World!");
 }
 "#
-			.to_string(),
-		)]);
+				.to_string(),
+			)],
+			..Default::default()
+		};
 
 		let (_, slide) = super::parse_slide(
 			r#"```rust
@@ -365,15 +418,75 @@ fn main() {
 
 	#[test]
 	fn parse_image_slide() -> Result<()> {
-		let expected = Slide(vec![SlideNode::Image(Image {
-			path: "ferris.png".to_string(),
-			alt_text: "ferris".to_string(),
-			handle: None,
-		})]);
+		let expected = Slide {
+			nodes: vec![SlideNode::Image(Image {
+				path: "ferris.png".to_string(),
+				alt_text: "ferris".to_string(),
+				handle: None,
+			})],
+			..Default::default()
+		};
 
 		let (_, slide_nodes) = parse_slide("![ferris](ferris.png)\n\n")?;
 		assert_eq!(slide_nodes, expected);
 
+		Ok(())
+	}
+
+	#[test]
+	fn parse_slide_background() -> Result<()> {
+		let expected = Slide {
+			nodes: vec![SlideNode::Text("Hello, World!".to_string())],
+			background: Some(Image {
+				path: "assets/generic-background.jpg".to_string(),
+				alt_text: "".to_string(),
+				handle: None,
+			}),
+		};
+
+		let (_, slide) = parse_slide(
+			r#"---![](assets/generic-background.jpg)
+
+Hello, World!
+
+"#,
+		)?;
+
+		assert_eq!(expected, slide);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_slide_background_for_second_slide() -> Result<()> {
+		let expected = vec![
+			Slide {
+				nodes: vec![SlideNode::Header(
+					HeaderSize::One,
+					"first slide".to_string(),
+				)],
+				background: None,
+			},
+			Slide {
+				nodes: vec![SlideNode::Text("Hello, World!".to_string())],
+				background: Some(Image {
+					path: "assets/generic-background.jpg".to_string(),
+					alt_text: "".to_string(),
+					handle: None,
+				}),
+			},
+		];
+
+		let (_, slides) = parse_slides(
+			r#"# first slide
+
+---![](assets/generic-background.jpg)
+
+Hello, World!
+
+"#,
+		)?;
+
+		assert_eq!(expected, slides);
 		Ok(())
 	}
 
