@@ -401,6 +401,7 @@ impl App {
 			} => match self.mode {
 				ref mut mode @ Mode::Windowed => *mode = Mode::Fullscreen,
 				ref mut mode @ Mode::Fullscreen => *mode = Mode::Windowed,
+				Mode::Hidden => (),
 			},
 
 			_ => (),
