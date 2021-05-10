@@ -179,7 +179,32 @@ fn code_block(_lang: Language, txt: &str) -> Element {
 		})
 		.collect();
 
-	Column::with_children(rows).into()
+	Container::new(Column::with_children(rows))
+		.padding(10)
+		.style(styles::CodeBlockContainer)
+		.into()
+}
+
+static SOLARIZED_BASE03: [f32; 3] = [0.0 / 255.0, 43.0 / 255.0, 54.0 / 255.0];
+
+mod styles {
+	use crate::views::SOLARIZED_BASE03;
+	use iced::container::{self, Style};
+	use iced::Background;
+
+	pub struct CodeBlockContainer;
+
+	impl container::StyleSheet for CodeBlockContainer {
+		fn style(&self) -> Style {
+			container::Style {
+				text_color: None,
+				background: Some(Background::Color(SOLARIZED_BASE03.into())),
+				border_radius: 10.0,
+				border_width: 0.0,
+				border_color: Default::default(),
+			}
+		}
+	}
 }
 
 #[allow(dead_code)]
