@@ -1,0 +1,5 @@
+[target.aarch64-unknown-linux-musl]
+rustflags = [
+	#"-C", "link-arg=-fuse-ld=aarch64-linux-gnu-ld",
+	"-C", "linker=aarch64-linux-gnu-ld",
+]
