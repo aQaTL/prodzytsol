@@ -16,6 +16,9 @@ mod commands;
 mod parser;
 mod views;
 
+#[cfg(test)]
+mod tests;
+
 fn main() -> Result<()> {
 	flexi_logger::Logger::with_env_or_str(concat!(env!("CARGO_PKG_NAME"), "=debug")).start()?;
 	App::run(Settings::default())?;
@@ -116,26 +119,6 @@ impl HeaderSize {
 	unsafe fn from_u8_unchecked(n: u8) -> Self {
 		std::mem::transmute(n)
 	}
-}
-
-#[test]
-fn header_size_test() {
-	let hs1 = HeaderSize::One;
-	let hs2 = HeaderSize::Two;
-	let hs5 = HeaderSize::Five;
-
-	assert_eq!(hs1 as u8, 1);
-	assert_eq!(hs2 as u8, 2);
-	assert_eq!(hs5 as u8, 5);
-}
-
-#[test]
-fn header_size_to_font_size_conversion_test() {
-	assert_eq!(HeaderSize::One.to_font_size(), 90);
-	assert_eq!(HeaderSize::Two.to_font_size(), 80);
-	assert_eq!(HeaderSize::Three.to_font_size(), 70);
-	assert_eq!(HeaderSize::Four.to_font_size(), 60);
-	assert_eq!(HeaderSize::Five.to_font_size(), 50);
 }
 
 impl Application for App {

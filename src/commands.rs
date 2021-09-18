@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use iced::image;
 use log::error;
 use std::path::{Path, PathBuf};
@@ -26,12 +26,14 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 		.unwrap_or_else(|| env!("CARGO_PKG_NAME").to_string());
 
 	let presentation_dir = path
+		.canonicalize()
+		.with_context(|| format!("failed to canonicalize {}", path.display()))?;
+	let presentation_dir = presentation_dir
 		.parent()
-		.ok_or(anyhow!("failed to get parent of {}", path.display()))?
-		.canonicalize()?;
+		.ok_or(anyhow!("failed to get parent of {}", path.display()))?;
 
 	let mut presentation =
-		crate::parser::parse_presentation(title, presentation_dir.clone(), &file)?;
+		crate::parser::parse_presentation(title, presentation_dir.to_owned(), &file)?;
 
 	presentation
 		.slides
