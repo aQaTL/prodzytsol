@@ -165,6 +165,7 @@ async fn load_image(path: &str) -> Result<Image> {
 	Ok(Image {
 		path: path.to_string(),
 		alt_text: "Ferris the crab".to_string(),
+		params: Default::default(),
 		handle,
 	})
 }

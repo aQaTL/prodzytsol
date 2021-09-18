@@ -1,14 +1,15 @@
 use anyhow::Result;
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, take_while_m_n};
-use nom::character::complete::{char, digit1, space1};
+use nom::character::complete::{char, digit1, space0, space1};
 use nom::combinator::{map, map_res, opt};
 use nom::error::ParseError;
 use nom::sequence::{delimited, preceded, tuple};
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
-use crate::{HeaderSize, Image, Language, Presentation, Slide, SlideNode};
+use crate::{HeaderSize, Image, ImageParams, Language, Presentation, Slide, SlideNode};
 use nom::multi::many1;
+use std::num::ParseFloatError;
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -109,6 +110,7 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 	let (tail, _) = char('!')(input)?;
 	let (tail, alt_text) = delimited(char('['), opt(is_not("]")), char(']'))(tail)?;
 	let (tail, path) = delimited(char('('), is_not(")"), char(')'))(tail)?;
+	let (tail, params) = parse_image_params(tail)?;
 
 	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
 
@@ -117,9 +119,42 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 		Image {
 			path: path.to_string(),
 			alt_text: alt_text.map(ToString::to_string).unwrap_or_default(),
+			params,
 			handle: None,
 		},
 	))
+}
+
+fn parse_image_params(mut input: &str) -> IResult<&str, ImageParams> {
+	match preceded::<_, _, _, nom::error::Error<&str>, _, _>(space0, char('{'))(input) {
+		Ok((tail, _)) => input = tail,
+		Err(_) => return Ok((input, ImageParams::default())),
+	}
+
+	let (mut input, scale) = opt(delimited(
+		space0,
+		map(
+			tuple((
+				tag("scale:"),
+				preceded(
+					space0,
+					map_res(digit1, |scale: &str| -> Result<_, ParseFloatError> {
+						scale.parse::<f32>()
+					}),
+				),
+				char('%'),
+			)),
+			|(_, scale, _)| scale / 100.0,
+		),
+		tuple((space0, char(';'), space0)),
+	))(input)?;
+
+	match preceded::<_, _, _, nom::error::Error<&str>, _, _>(space0, char('}'))(input) {
+		Ok((tail, _)) => input = tail,
+		Err(_) => return Ok((input, ImageParams::default())),
+	}
+
+	Ok((input, ImageParams { scale }))
 }
 
 fn parse_comment(input: &str) -> IResult<&str, String> {
@@ -280,13 +315,14 @@ mod tests {
 		let expected = Image {
 			path: "ferris.png".to_string(),
 			alt_text: "Ferris the crab".to_string(),
+			params: Default::default(),
 			// handle isn't compared
 			handle: None,
 		};
 
 		let (_, image) = super::parse_image("![Ferris the crab](ferris.png)")?;
-		println!("{:?}", image);
-		println!("{:?}", expected);
+		eprintln!("{:?}", image);
+		eprintln!("{:?}", expected);
 
 		assert_eq!(image, expected);
 		Ok(())
@@ -297,6 +333,7 @@ mod tests {
 		let expected = Image {
 			path: "ferris.png".to_string(),
 			alt_text: "".to_string(),
+			params: Default::default(),
 			// handle isn't compared
 			handle: None,
 		};
@@ -304,6 +341,24 @@ mod tests {
 		let (_, image) = super::parse_image("![](ferris.png)")?;
 		assert_eq!(expected, image);
 
+		Ok(())
+	}
+
+	#[test]
+	fn parse_image_with_params() -> Result<()> {
+		let expected = Image {
+			path: "ferris.png".to_string(),
+			alt_text: "Ferris the crab".to_string(),
+			params: ImageParams { scale: Some(0.5) },
+			// handle isn't compared
+			handle: None,
+		};
+
+		let (_, image) = super::parse_image("![Ferris the crab](ferris.png){ scale: 50%; }")?;
+		eprintln!("{:?}", image);
+		eprintln!("{:?}", expected);
+
+		assert_eq!(image, expected);
 		Ok(())
 	}
 
@@ -430,6 +485,7 @@ fn main() {
 			nodes: vec![SlideNode::Image(Image {
 				path: "ferris.png".to_string(),
 				alt_text: "ferris".to_string(),
+				params: Default::default(),
 				handle: None,
 			})],
 			..Default::default()
@@ -448,6 +504,7 @@ fn main() {
 			background: Some(Image {
 				path: "assets/generic-background.jpg".to_string(),
 				alt_text: "".to_string(),
+				params: Default::default(),
 				handle: None,
 			}),
 		};
@@ -479,6 +536,7 @@ Hello, World!
 				background: Some(Image {
 					path: "assets/generic-background.jpg".to_string(),
 					alt_text: "".to_string(),
+					params: Default::default(),
 					handle: None,
 				}),
 			},

@@ -56,10 +56,19 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			SlideNode::Image(Image {
 				path: _name,
 				alt_text,
+				params,
 				handle,
 			}) => {
 				let image: iced::Element<_> = match handle {
-					Some(ref handle) => image::Image::new(handle.clone()).into(),
+					Some(ref handle) => {
+						let image = image::Image::new(handle.clone());
+
+						if let Some(_scale) = params.scale {
+							//TODO(aQaTL): Image scaling
+						}
+
+						image.into()
+					}
 					None => text(alt_text).into(),
 				};
 

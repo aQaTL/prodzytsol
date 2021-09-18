@@ -73,7 +73,14 @@ pub enum SlideNode {
 pub struct Image {
 	path: String,
 	alt_text: String,
+	params: ImageParams,
 	handle: Option<image::Handle>,
+}
+
+#[derive(Debug, Default)]
+pub struct ImageParams {
+	/// Scale in percentage
+	scale: Option<f32>,
 }
 
 impl PartialEq for Image {
