@@ -280,7 +280,7 @@ impl FileWatch {
 		let (sender, _) = tokio::sync::broadcast::channel(10);
 		let sender_2 = sender.clone();
 
-		let watcher = RecommendedWatcher::new_immediate(move |res| match res {
+		let watcher = RecommendedWatcher::new(move |res| match res {
 			Ok(notify::Event {
 				kind: notify::EventKind::Modify(_),
 				..
