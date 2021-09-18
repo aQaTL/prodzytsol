@@ -122,6 +122,13 @@ fn parse_image(input: &str) -> IResult<&str, Image> {
 	))
 }
 
+fn parse_comment(input: &str) -> IResult<&str, String> {
+	let (input, _) = tag("//")(input)?;
+	let (input, comment) = till_pat_consuming("\n\n").parse(input)?;
+
+	Ok((input, comment.to_string()))
+}
+
 fn parse_text_section(input: &str) -> IResult<&str, String> {
 	let (tail, text_str) = till_pat_consuming("\n\n").parse(input)?;
 
@@ -141,6 +148,7 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 			SlideNode::CodeBlock(language, code_block)
 		}),
 		map(parse_image, |image| SlideNode::Image(image)),
+		map(parse_comment, |text| SlideNode::Comment(text)),
 		map(parse_text_section, |text| SlideNode::Text(text)),
 	))(input)
 }

@@ -66,6 +66,7 @@ pub enum SlideNode {
 	NumberedList(Vec<String>),
 	Image(Image),
 	CodeBlock(Language, String),
+	Comment(String),
 }
 
 #[derive(Debug)]

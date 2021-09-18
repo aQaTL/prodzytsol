@@ -68,6 +68,7 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			SlideNode::CodeBlock(lang, txt) => {
 				column = column.push(code_block(*lang, txt));
 			}
+			SlideNode::Comment(_) => continue,
 		}
 	}
 
