@@ -1,5 +1,6 @@
 use crate::{App, HeaderSize, Image, Language, Presentation, PresentationState, Slide, SlideNode};
 use iced::*;
+use iced_native::image::Data as ImageData;
 use unicode_segmentation::UnicodeSegmentation;
 
 type Element = iced::Element<'static, <App as Application>::Message>;
@@ -61,10 +62,30 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 			}) => {
 				let image: iced::Element<_> = match handle {
 					Some(ref handle) => {
-						let image = image::Image::new(handle.clone());
+						let mut scaled_height = None;
+						match handle.data() {
+							ImageData::Pixels { height, .. } => {
+								if let Some(scale) = params.scale {
+									scaled_height = Some(*height as f64 * (scale as f64 / 100.0));
+									log::info!(
+										"setting img height to {:?} from {}",
+										scaled_height,
+										*height
+									);
+								}
+							}
+							ImageData::Path(_) => {
+								log::error!("image data contains a path variant");
+							}
+							ImageData::Bytes(_) => {
+								log::error!("image data contains a bytes variant");
+							}
+						}
+						let mut image = image::Image::new(handle.clone());
 
-						if let Some(_scale) = params.scale {
-							//TODO(aQaTL): Image scaling
+						if let Some(scaled_height) = scaled_height {
+							log::info!("setting img height to {}", scaled_height);
+							image = image.height(Length::Units(scaled_height as u16));
 						}
 
 						image.into()

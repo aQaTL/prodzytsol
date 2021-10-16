@@ -40,7 +40,14 @@ To jest moja prezentacja
 
 ![Ferris the dancing crab](assets/dancing-ferris.gif)
 
+(O nie, gify jeszcze nie działają)
+
 ---
 
-(O nie, gify jeszcze nie działają)
+### Ferris zmniejszony
+
+![Ferris the crab](assets/ferris.png){ scale: 50%; }
+
+---
+
 

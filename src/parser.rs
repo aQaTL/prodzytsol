@@ -144,7 +144,7 @@ fn parse_image_params(mut input: &str) -> IResult<&str, ImageParams> {
 				),
 				char('%'),
 			)),
-			|(_, scale, _)| scale / 100.0,
+			|(_, scale, _)| scale,
 		),
 		tuple((space0, char(';'), space0)),
 	))(input)?;

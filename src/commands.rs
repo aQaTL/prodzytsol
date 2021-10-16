@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use iced::image;
 use log::error;
 use std::path::{Path, PathBuf};
 
@@ -35,24 +34,31 @@ async fn load_from_file(path: &str) -> LoadFromArgsResult {
 	let mut presentation =
 		crate::parser::parse_presentation(title, presentation_dir.to_owned(), &file)?;
 
-	presentation
+	let images = presentation
 		.slides
 		.iter_mut()
 		.flat_map(|slide| slide.nodes.iter_mut())
 		.filter_map(|node| match node {
 			SlideNode::Image(ref mut img) => Some(img),
 			_ => None,
-		})
-		.for_each(|image| {
-			let path = presentation_dir.join(&image.path);
-			if !path.exists() || !path.is_file() {
-				log::error!("{} not found", path.display());
-				return;
-			}
-
-			let handle = image::Handle::from_path(path);
-			image.handle = Some(handle);
 		});
+
+	for image in images {
+		let path = presentation_dir.join(&image.path);
+		if !path.exists() || !path.is_file() {
+			log::error!("{} not found", path.display());
+			continue;
+		}
+
+		let dyn_image = tokio::task::spawn_blocking(move || image::open(path))
+			.await??
+			.into_bgra8();
+		let (width, height) = (dyn_image.width(), dyn_image.height());
+		let pixels = dyn_image.into_raw();
+
+		let handle = iced::image::Handle::from_pixels(width, height, pixels);
+		image.handle = Some(handle);
+	}
 
 	Ok(presentation)
 }
@@ -161,7 +167,15 @@ fn sqrt(n: f64) -> SqrtResult {
 }
 
 async fn load_image(path: &str) -> Result<Image> {
-	let handle = Some(image::Handle::from_path(format!("assets/{}", path)));
+	let img_path = format!("assets/{}", path);
+	let dyn_image = tokio::task::spawn_blocking(move || image::open(img_path))
+		.await??
+		.into_bgra8();
+	let (width, height) = (dyn_image.width(), dyn_image.height());
+	let pixels = dyn_image.into_raw();
+
+	let handle: Option<_> = iced::image::Handle::from_pixels(width, height, pixels).into();
+
 	Ok(Image {
 		path: path.to_string(),
 		alt_text: "Ferris the crab".to_string(),
