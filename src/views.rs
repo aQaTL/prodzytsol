@@ -69,7 +69,7 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 							ImageData::Pixels { height, .. } => {
 								if let Some(scale) = params.scale {
 									scaled_height = Some(*height as f64 * (scale as f64 / 100.0));
-									log::debug!(
+									log::trace!(
 										"setting img height to {:?} from {}",
 										scaled_height,
 										*height
@@ -86,7 +86,7 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 						let mut image = image::Image::new(handle.clone());
 
 						if let Some(scaled_height) = scaled_height {
-							log::debug!("setting img height to {}", scaled_height);
+							log::trace!("setting img height to {}", scaled_height);
 							image = image.height(Length::Units(scaled_height as u16));
 						}
 
