@@ -7,7 +7,10 @@ use nom::error::ParseError;
 use nom::sequence::{delimited, preceded, tuple};
 use nom::{FindSubstring, IResult, InputTake, Parser};
 
-use crate::{HeaderSize, Image, ImageParams, Language, Presentation, Slide, SlideNode};
+use crate::{
+	CodeBlockParams, CodeFontStyle, HeaderSize, Image, ImageParams, Language, Presentation, Slide,
+	SlideNode,
+};
 use nom::multi::many1;
 use std::num::ParseFloatError;
 use std::path::PathBuf;
@@ -95,15 +98,56 @@ fn parse_numbered_list(input: &str) -> IResult<&str, Vec<String>> {
 	Ok((tail, items))
 }
 
-fn parse_code_block(input: &str) -> IResult<&str, (Language, String)> {
-	let (tail, _) = tag("```")(input)?;
+fn parse_code_block(input: &str) -> IResult<&str, (Language, CodeBlockParams, String)> {
+	let (tail, code_block_params) = parse_code_block_params(input)?;
+	let (tail, _) = tag("```")(tail)?;
 	let (tail, language) =
 		map_res(till_pat_consuming("\n"), |lang| lang.parse::<Language>())(tail)?;
 	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
 
 	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
 
-	Ok((tail, (language, code_block.to_string())))
+	Ok((tail, (language, code_block_params, code_block.to_string())))
+}
+
+fn parse_code_block_params(mut input: &str) -> IResult<&str, CodeBlockParams> {
+	let mut params = CodeBlockParams::default();
+
+	loop {
+		let tail = match char::<_, nom::error::Error<&str>>('|')(input) {
+			Ok((tail, _)) => tail,
+			Err(_) => return Ok((input, params)),
+		};
+		let (tail, _) = space1(tail)?;
+
+		let (tail, _) = alt((
+			preceded(
+				tuple((tag("font_size:"), space1)),
+				map(map_res(digit1, str::parse::<u16>), |font_size| {
+					params.font_size = Some(font_size);
+				}),
+			),
+			preceded(
+				tuple((tag("font_style:"), space1)),
+				map(
+					alt((
+						map(tag("regular"), |_| CodeFontStyle::Regular),
+						map(tag("bold"), |_| CodeFontStyle::Bold),
+						map(tag("semi_bold"), |_| CodeFontStyle::SemiBold),
+						map(tag("light"), |_| CodeFontStyle::Light),
+						map(tag("semi_light"), |_| CodeFontStyle::SemiLight),
+						map(tag("extra_light"), |_| CodeFontStyle::ExtraLight),
+					)),
+					|font_style| {
+						params.font_style = Some(font_style);
+					},
+				),
+			),
+		))(tail)?;
+
+		let (tail, _) = till_pat_consuming("\n").parse(tail)?;
+		input = tail;
+	}
 }
 
 fn parse_image(input: &str) -> IResult<&str, Image> {
@@ -179,8 +223,8 @@ fn parse_slide_node(input: &str) -> IResult<&str, SlideNode> {
 			SlideNode::UnnumberedList(items)
 		}),
 		map(parse_numbered_list, |items| SlideNode::NumberedList(items)),
-		map(parse_code_block, |(language, code_block)| {
-			SlideNode::CodeBlock(language, code_block)
+		map(parse_code_block, |(language, params, code_block)| {
+			SlideNode::CodeBlock(language, params, code_block)
 		}),
 		map(parse_image, |image| SlideNode::Image(image)),
 		map(parse_comment, |text| SlideNode::Comment(text)),
@@ -366,6 +410,7 @@ mod tests {
 	fn parse_code_block() -> Result<()> {
 		let expected = (
 			Language::Rust,
+			CodeBlockParams::default(),
 			r#"enum Result<T, E> {
 	Ok(T),
 	Err(E),
@@ -380,6 +425,94 @@ fn main() {
 
 		let (_, code_block) = super::parse_code_block(
 			r#"```rust
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```"#,
+		)?;
+
+		assert_eq!(expected, code_block);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block_plaintext() -> Result<()> {
+		let expected = (
+			Language::PlainText,
+			CodeBlockParams::default(),
+			r#"enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+"#
+			.to_string(),
+		);
+
+		let (_, code_block) = super::parse_code_block(
+			r#"```
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```"#,
+		)?;
+
+		assert_eq!(expected, code_block);
+
+		let (_, code_block) = super::parse_code_block(
+			r#"```plain_text
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```"#,
+		)?;
+
+		assert_eq!(expected, code_block);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block_with_params() -> Result<()> {
+		let expected = (
+			Language::Rust,
+			CodeBlockParams {
+				font_size: Some(20),
+				font_style: Some(CodeFontStyle::ExtraLight),
+			},
+			r#"enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+"#
+			.to_string(),
+		);
+
+		let (_, code_block) = super::parse_code_block(
+			r#"| font_size: 20
+| font_style: extra_light
+```rust
 enum Result<T, E> {
 	Ok(T),
 	Err(E),
@@ -446,6 +579,7 @@ fn main() {
 		let expected = Slide {
 			nodes: vec![SlideNode::CodeBlock(
 				Language::Rust,
+				CodeBlockParams::default(),
 				r#"enum Result<T, E> {
 	Ok(T),
 	Err(E),
@@ -462,6 +596,50 @@ fn main() {
 
 		let (_, slide) = super::parse_slide(
 			r#"```rust
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+```
+
+"#,
+		)?;
+
+		assert_eq!(expected, slide);
+		Ok(())
+	}
+
+	#[test]
+	fn parse_code_block_with_params_slide() -> Result<()> {
+		let expected = Slide {
+			nodes: vec![SlideNode::CodeBlock(
+				Language::Rust,
+				CodeBlockParams {
+					font_size: Some(98),
+					font_style: Some(CodeFontStyle::SemiLight),
+				},
+				r#"enum Result<T, E> {
+	Ok(T),
+	Err(E),
+}
+
+fn main() {
+	println!("Hello, World!");
+}
+"#
+				.to_string(),
+			)],
+			..Default::default()
+		};
+
+		let (_, slide) = super::parse_slide(
+			r#"| font_style: semi_light
+| font_size: 98
+```rust
 enum Result<T, E> {
 	Ok(T),
 	Err(E),

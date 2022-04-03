@@ -1,7 +1,9 @@
-use crate::{App, HeaderSize, Image, Language, Presentation, PresentationState, Slide, SlideNode};
+use crate::{
+	App, CodeBlockParams, CodeFontStyle, HeaderSize, Image, Language, Presentation,
+	PresentationState, Slide, SlideNode,
+};
 use iced::*;
 use iced_native::image::Data as ImageData;
-use unicode_segmentation::UnicodeSegmentation;
 
 type Element = iced::Element<'static, <App as Application>::Message>;
 
@@ -95,8 +97,8 @@ pub fn presentation(presentation: &Presentation, state: &PresentationState) -> E
 
 				column = column.push(image);
 			}
-			SlideNode::CodeBlock(lang, txt) => {
-				column = column.push(code_block(*lang, txt));
+			SlideNode::CodeBlock(lang, params, txt) => {
+				column = column.push(code_block(*lang, params, txt));
 			}
 			SlideNode::Comment(_) => continue,
 		}
@@ -180,12 +182,38 @@ fn numbered_list(list: &Vec<String>) -> Element {
 	.into()
 }
 
-static SOLARIZED_GRAY: [f32; 3] = [131.0 / 255.0, 148.0 / 255.0, 150.0 / 255.0];
+// static SOLARIZED_GRAY: [f32; 3] = [131.0 / 255.0, 148.0 / 255.0, 150.0 / 255.0];
 
 // static BLUE: [f32; 3] = [3.8 / 255.0, 94.9 / 255.0, 188.6 / 255.0];
 // static RED: [f32; 3] = [193.3 / 255.0, 23.4 / 255.0, 88.5 / 255.0];
 
-fn code_block(_lang: Language, txt: &str) -> Element {
+fn code_block(lang: Language, params: &CodeBlockParams, txt: &str) -> Element {
+	use syntect::easy::HighlightLines;
+	use syntect::highlighting::{Color, Style, ThemeSet};
+	use syntect::parsing::SyntaxSet;
+
+	let solarized_theme = ThemeSet::load_defaults().themes["Solarized (dark)"].to_owned();
+	let syntax_set = SyntaxSet::load_defaults_newlines();
+
+	let font_size = params.font_size.unwrap_or(38);
+	let font = match params.font_style {
+		Some(CodeFontStyle::Regular) => fonts::CASCADIA_CODE_REGULAR,
+		Some(CodeFontStyle::Bold) => fonts::CASCADIA_CODE_BOLD,
+		Some(CodeFontStyle::SemiBold) => fonts::CASCADIA_CODE_SEMI_BOLD,
+		Some(CodeFontStyle::Light) => fonts::CASCADIA_CODE_LIGHT,
+		Some(CodeFontStyle::SemiLight) => fonts::CASCADIA_CODE_SEMI_LIGHT,
+		Some(CodeFontStyle::ExtraLight) => fonts::CASCADIA_CODE_EXTRA_LIGHT,
+		None => fonts::CASCADIA_CODE_REGULAR,
+	};
+
+	let syntax_ref = match lang {
+		Language::PlainText => Some(syntax_set.find_syntax_plain_text()),
+		Language::Rust => syntax_set.find_syntax_by_name("Rust"),
+	}
+	.unwrap_or_else(|| syntax_set.find_syntax_plain_text());
+
+	let mut highlighter = HighlightLines::new(syntax_ref, &solarized_theme);
+
 	let rows: Vec<Element> = txt
 		.replace("\t", "    ")
 		.lines()
@@ -194,14 +222,18 @@ fn code_block(_lang: Language, txt: &str) -> Element {
 				line = " ";
 			}
 
+			let ranges: Vec<(Style, &str)> = highlighter.highlight(line, &syntax_set);
+
 			Row::with_children(
-				line.graphemes(true)
-					.map(|grapheme| {
-						Text::new(grapheme)
+				ranges
+					.into_iter()
+					.map(|(style, str)| {
+						let Color { r, b, g, a } = style.foreground;
+						Text::new(str)
 							.width(Length::Shrink)
-							.size(38)
-							.color(SOLARIZED_GRAY)
-							.font(fonts::CASCADIA_CODE_REGULAR)
+							.size(font_size)
+							.color(iced::Color::from_rgba8(r, g, b, f32::from(a) / 255.0))
+							.font(font)
 							.into()
 					})
 					.collect(),

@@ -65,8 +65,24 @@ pub enum SlideNode {
 	UnnumberedList(Vec<String>),
 	NumberedList(Vec<String>),
 	Image(Image),
-	CodeBlock(Language, String),
+	CodeBlock(Language, CodeBlockParams, String),
 	Comment(String),
+}
+
+#[derive(Debug, Eq, PartialEq, Default)]
+pub struct CodeBlockParams {
+	font_size: Option<u16>,
+	font_style: Option<CodeFontStyle>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum CodeFontStyle {
+	Regular,
+	Bold,
+	SemiBold,
+	Light,
+	SemiLight,
+	ExtraLight,
 }
 
 #[derive(Debug)]
@@ -93,6 +109,7 @@ impl Eq for Image {}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Language {
+	PlainText,
 	Rust,
 }
 
@@ -103,6 +120,7 @@ impl FromStr for Language {
 		use Language::*;
 		Ok(match s {
 			"rust" => Rust,
+			"" | "plain_text" => PlainText,
 			_ => anyhow::bail!("Unknown language {}", s),
 		})
 	}

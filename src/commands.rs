@@ -2,7 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use log::error;
 use std::path::{Path, PathBuf};
 
-use crate::{FileWatch, HeaderSize, Image, Language, Presentation, Slide, SlideNode};
+use crate::{
+	CodeBlockParams, FileWatch, HeaderSize, Image, Language, Presentation, Slide, SlideNode,
+};
 
 pub type LoadFromArgsResult = Result<Presentation>;
 
@@ -116,6 +118,7 @@ async fn load_example() -> LoadFromArgsResult {
 				SlideNode::Header(HeaderSize::Two, String::from("while loop")),
 				SlideNode::CodeBlock(
 					Language::Rust,
+					CodeBlockParams::default(),
 					String::from(
 						r#"let mut a = 0;
 
@@ -132,6 +135,7 @@ while a < 10 {
 				SlideNode::Header(HeaderSize::Two, String::from("enum")),
 				SlideNode::CodeBlock(
 					Language::Rust,
+					CodeBlockParams::default(),
 					String::from(
 						r#"enum SqrtResult {
 	Success(f64),
