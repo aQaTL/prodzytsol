@@ -178,6 +178,7 @@ impl Application for App {
 		match message {
 			Message::Loaded(Ok(presentation)) => {
 				info!("Loaded presentation \"{}\"", presentation.title);
+				info!("Slides count: {}", presentation.slides.len());
 
 				let (state, file_watcher) = match self.stage {
 					Stage::Presentation {
