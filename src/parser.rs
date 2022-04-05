@@ -11,6 +11,7 @@ use crate::{
 	CodeBlockParams, CodeFontStyle, HeaderSize, Image, ImageParams, Language, Presentation, Slide,
 	SlideNode,
 };
+use log::warn;
 use nom::multi::many1;
 use std::num::ParseFloatError;
 use std::path::PathBuf;
@@ -101,8 +102,14 @@ fn parse_numbered_list(input: &str) -> IResult<&str, Vec<String>> {
 fn parse_code_block(input: &str) -> IResult<&str, (Language, CodeBlockParams, String)> {
 	let (tail, code_block_params) = parse_code_block_params(input)?;
 	let (tail, _) = tag("```")(tail)?;
-	let (tail, language) =
-		map_res(till_pat_consuming("\n"), |lang| lang.parse::<Language>())(tail)?;
+	let (tail, language) = till_pat_consuming("\n").parse(tail)?;
+	let language = match language.parse::<Language>() {
+		Ok(v) => v,
+		Err(_) => {
+			warn!("Unknown lang \"{}\". Defaulting to plain text", language);
+			Language::PlainText
+		}
+	};
 	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
 
 	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
