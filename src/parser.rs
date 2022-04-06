@@ -110,7 +110,15 @@ fn parse_code_block(input: &str) -> IResult<&str, (Language, CodeBlockParams, St
 			Language::PlainText
 		}
 	};
-	let (tail, code_block) = till_pat_consuming("```").parse(tail)?;
+	// let (tail, code_block) = till_pat_consuming("\n```").parse(tail)?;
+	let substr = "\n```";
+	let (tail, code_block) = match tail.find_substring(substr) {
+		Some(index) => {
+			let (tail, value) = tail.take_split(index + 1);
+			Ok((&tail[(substr.len() - 1)..], value))
+		}
+		None => Ok((&tail[0..0], tail)),
+	}?;
 
 	let (tail, _) = till_pat_consuming("\n\n").parse(tail)?;
 
