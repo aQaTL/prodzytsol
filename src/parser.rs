@@ -1,6 +1,6 @@
 use anyhow::Result;
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, take_while_m_n};
+use nom::bytes::complete::{is_not, tag, take_until, take_while_m_n};
 use nom::character::complete::{char, digit1, space0, space1};
 use nom::combinator::{map, map_res, opt};
 use nom::error::ParseError;
@@ -111,7 +111,14 @@ fn parse_code_block(input: &str) -> IResult<&str, (Language, CodeBlockParams, St
 		}
 	};
 	// let (tail, code_block) = till_pat_consuming("\n```").parse(tail)?;
-	let substr = "\n```";
+	let substr_with_block_terminator;
+	let substr: &str = match code_block_params.block_terminator {
+		Some(ref block_terminator) => {
+			substr_with_block_terminator = format!("\n```{block_terminator}");
+			&substr_with_block_terminator
+		}
+		None => "\n```",
+	};
 	let (tail, code_block) = match tail.find_substring(substr) {
 		Some(index) => {
 			let (tail, value) = tail.take_split(index + 1);
@@ -157,6 +164,12 @@ fn parse_code_block_params(mut input: &str) -> IResult<&str, CodeBlockParams> {
 						params.font_style = Some(font_style);
 					},
 				),
+			),
+			preceded(
+				tuple((tag("block_terminator:"), space1)),
+				map(take_until("\n"), |b: &str| {
+					params.block_terminator = Some(b.to_string());
+				}),
 			),
 		))(tail)?;
 
@@ -511,6 +524,7 @@ fn main() {
 			CodeBlockParams {
 				font_size: Some(20),
 				font_style: Some(CodeFontStyle::ExtraLight),
+				block_terminator: None,
 			},
 			r#"enum Result<T, E> {
 	Ok(T),
@@ -636,6 +650,7 @@ fn main() {
 				CodeBlockParams {
 					font_size: Some(98),
 					font_style: Some(CodeFontStyle::SemiLight),
+					block_terminator: None,
 				},
 				r#"enum Result<T, E> {
 	Ok(T),

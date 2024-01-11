@@ -73,6 +73,7 @@ pub enum SlideNode {
 pub struct CodeBlockParams {
 	font_size: Option<u16>,
 	font_style: Option<CodeFontStyle>,
+	block_terminator: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -290,21 +291,24 @@ impl FileWatch {
 		let (sender, _) = tokio::sync::broadcast::channel(10);
 		let sender_2 = sender.clone();
 
-		let watcher = RecommendedWatcher::new(move |res| match res {
-			Ok(notify::Event {
-				kind: notify::EventKind::Modify(_),
-				..
-			}) => {
-				// info!("Sending watcher update");
-				if sender_2.send(()).is_err() {
-					error!("File watcher received end has been dropped");
+		let watcher = RecommendedWatcher::new(
+			move |res| match res {
+				Ok(notify::Event {
+					kind: notify::EventKind::Modify(_),
+					..
+				}) => {
+					// info!("Sending watcher update");
+					if sender_2.send(()).is_err() {
+						error!("File watcher received end has been dropped");
+					}
 				}
-			}
-			Err(e) => {
-				error!("File watcher error: {:?}", e);
-			}
-			_ => (),
-		});
+				Err(e) => {
+					error!("File watcher error: {:?}", e);
+				}
+				_ => (),
+			},
+			notify::Config::default(),
+		);
 
 		let mut watcher = match watcher {
 			Ok(v) => v,
